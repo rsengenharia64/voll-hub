@@ -2941,14 +2941,19 @@ function Turmas({
     PENDENTE: "Pendente"
   })[s];
   const sendLink = c => {
-    const link = `${TURMAS_URL}?estado=${c.state}&cidade=${encodeURIComponent(c.city)}`;
+    const partes = String(c.date || "").split(" \u00b7 ").filter(Boolean);
+    let datasTxt;
+    if (partes.length >= 2) datasTxt = `\u{1F4C5} M\u00f3dulo I: ${partes[0]}\n\u{1F4C5} M\u00f3dulo II: ${partes[1]}`;
+    else datasTxt = `\u{1F4C5} Datas: ${c.date || "a definir"}`;
+    const vagasTxt = c.status === "ESGOTADA" ? "Turma esgotada" : c.status === "POUCAS_VAGAS" ? `\u00daltimas vagas${c.seats ? ` (${c.seats})` : ""}` : c.seats ? `${c.seats} vaga(s) abertas` : "Vagas abertas";
+    const msg = `*VOLL Pilates \u2014 Forma\u00e7\u00e3o Completa em Pilates*\n` + (c.turno ? `*Turma ${c.turno}* \u2014 ` : "") + `${c.city}/${c.state}\n\n` + (c.location ? `\u{1F4CD} Local: ${c.location}\n` : "") + datasTxt + `\n` + (c.horario ? `\u23F0 Hor\u00e1rio: ${c.horario}\n` : "") + `\u{1F39F}\uFE0F ${vagasTxt}\n\nPosso reservar sua vaga? \u{1F60A}`;
     setPanel({
       type: "link",
       turma: c,
-      link
+      msg
     });
     setCopied(false);
-    onAudit?.(`Link de turmas gerado para o lead (${c.city}/${c.state})`);
+    onAudit?.(`Informa\u00e7\u00f5es da turma ${c.city}/${c.state} preparadas para o lead`);
   };
   const encaixar = c => {
     setPanel({
@@ -2958,7 +2963,7 @@ function Turmas({
     onEncaixe?.(c);
   };
   const copy = () => {
-    navigator.clipboard?.writeText(panel.link);
+    navigator.clipboard?.writeText(panel.msg || "");
     setCopied(true);
   };
   const liberarVagas = (c, n) => {
@@ -3194,7 +3199,7 @@ function Turmas({
       fontSize: 14,
       color: C.brand
     }
-  }, "Link da turma ", panel.turma.city, "/", panel.turma.state), /*#__PURE__*/React.createElement("button", {
+  }, "Mensagem para o cliente \u2014 ", panel.turma.city, "/", panel.turma.state), /*#__PURE__*/React.createElement("button", {
     onClick: () => setPanel(null),
     style: {
       border: "none",
@@ -3206,14 +3211,14 @@ function Turmas({
   }, "✕")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
-      fontFamily: "monospace",
-      wordBreak: "break-all",
+      whiteSpace: "pre-line",
+      lineHeight: 1.5,
       background: C.panel,
       border: `1px solid ${C.line}`,
       borderRadius: 8,
       padding: 10
     }
-  }, panel.link), /*#__PURE__*/React.createElement("div", {
+  }, panel.msg), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -3223,17 +3228,14 @@ function Turmas({
   }, /*#__PURE__*/React.createElement(Btn, {
     small: true,
     onClick: copy
-  }, copied ? "Copiado ✓" : "Copiar link"), /*#__PURE__*/React.createElement("a", {
-    href: panel.link,
+  }, copied ? "Copiado ✓" : "Copiar mensagem"), /*#__PURE__*/React.createElement("a", {
+    href: "https://wa.me/?text=" + encodeURIComponent(panel.msg || ""),
     target: "_blank",
     rel: "noreferrer"
   }, /*#__PURE__*/React.createElement(Btn, {
     small: true,
     variant: "ghost"
-  }, "Abrir ↗")), /*#__PURE__*/React.createElement(Btn, {
-    small: true,
-    variant: "ghost"
-  }, "Enviar no WhatsApp"))) : /*#__PURE__*/React.createElement("div", {
+  }, "Enviar no WhatsApp ↗")))) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",

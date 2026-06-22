@@ -43,6 +43,112 @@ const TURMAS_URL = "https://evp-git-dev-vollpilates-projects.vercel.app/turmas-e
 const POWERBI_URL = "https://app.powerbi.com/groups/4068cb86-4c49-45ed-b5ed-ce2e1dfe4ea6/reports/19b9cbce-9e43-4044-9c85-fc8a5bc7edd3";
 const DATASTUDIO_URL = "https://datastudio.google.com/u/1/reporting/a0ae3ed7-dc8f-4a1e-ba6b-40bdfb493531/page/bgE0F";
 
+// ============================================================
+// Sincronização ao vivo de turmas (estados/cidades/datas/horários/vagas)
+// Fonte oficial: API WordPress de cursodepilates.com.br (CORS aberto).
+// ============================================================
+const WP_API = "https://cursodepilates.com.br/wp-json/wp/v2";
+const UF_NOMES = {
+  AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia",
+  CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
+  MA: "Maranhão", MT: "Mato Grosso", MS: "Mato Grosso do Sul", MG: "Minas Gerais",
+  PA: "Pará", PB: "Paraíba", PR: "Paraná", PE: "Pernambuco", PI: "Piauí",
+  RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RS: "Rio Grande do Sul",
+  RO: "Rondônia", RR: "Roraima", SC: "Santa Catarina", SP: "São Paulo",
+  SE: "Sergipe", TO: "Tocantins"
+};
+function _decodeHtml(s) {
+  if (!s) return "";
+  const t = document.createElement("textarea");
+  t.innerHTML = s;
+  return t.value;
+}
+function _stripHtml(h) {
+  if (!h) return "";
+  const d = document.createElement("div");
+  d.innerHTML = h;
+  return (d.textContent || "").replace(/ /g, " ").replace(/\s+/g, " ").trim();
+}
+function _parseInfo(html) {
+  const txt = _stripHtml(html);
+  let hor = "", loc = "";
+  let m = txt.match(/Hor[áa]rio\s*:?\s*(.*?)(?=\s*Local|$)/i);
+  if (m) hor = m[1].replace(/[•·\-–—\s]+$/, "").trim();
+  m = txt.match(/Local\s*:?\s*(.*)$/i);
+  if (m) loc = m[1].replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").trim();
+  return { hor, loc };
+}
+function _statusVagas(vagasTxt, restantes) {
+  const v = (vagasTxt || "").toLowerCase();
+  if (v.indexOf("esgot") >= 0) return "ESGOTADA";
+  const n = Number(restantes);
+  if (!isNaN(n) && n > 0 && n <= 2) return "POUCAS_VAGAS";
+  return "ABERTA";
+}
+function mapTurmaToClasses(t) {
+  const out = [];
+  const ufClass = (t.class_list || []).find(c => c.indexOf("estados-") === 0);
+  const uf = ufClass ? ufClass.split("-")[1].toUpperCase() : "—";
+  const city = _decodeHtml((t.title && t.title.rendered) || "").trim();
+  const blocks = (t.acf && Array.isArray(t.acf.tabela)) ? t.acf.tabela : [];
+  blocks.forEach((bl, bi) => {
+    const info = _parseInfo(bl.tabela_maisinformacoes);
+    const rows = Array.isArray(bl.tabela_infos) ? bl.tabela_infos : [];
+    if (rows.length === 0) {
+      out.push({
+        id: "WP" + t.id + "-" + bi, product: "Formação Completa em Pilates",
+        city, state: uf, location: info.loc || "", date: "A definir",
+        modality: "Presencial", seats: 0, status: "PENDENTE", special: false,
+        horario: info.hor, source: "live"
+      });
+      return;
+    }
+    rows.forEach((r, ri) => {
+      const datas = [r.tabela_infos_modulos_datas, r.tabela_infos_modulos_datas2]
+        .filter(Boolean).map(s => String(s).trim()).join(" · ");
+      out.push({
+        id: "WP" + t.id + "-" + bi + "-" + ri,
+        product: "Formação Completa em Pilates",
+        city, state: uf, location: info.loc || "",
+        date: datas || "A definir", modality: "Presencial",
+        seats: Number(r.tabela_infos_vagas_restantes) || 0,
+        status: _statusVagas(r.tabela_infos_vagas, r.tabela_infos_vagas_restantes),
+        special: false, horario: info.hor,
+        turno: String(r.tabela_infos_turma || "").replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").trim(),
+        source: "live"
+      });
+    });
+  });
+  return out;
+}
+function loadLiveClasses() {
+  const pages = [1, 2];
+  const url = p => WP_API + "/turmas?per_page=100&page=" + p + "&_fields=id,title,class_list,acf,estados";
+  return Promise.all(pages.map(p => fetch(url(p)).then(r => r.ok ? r.json() : []).catch(() => [])))
+    .then(parts => {
+      const all = [].concat.apply([], parts);
+      return [].concat.apply([], all.map(mapTurmaToClasses));
+    });
+}
+
+// Catálogo de cursos/produtos (provisório — será substituído pela planilha oficial de cursos).
+// Para trocar: edite esta lista OU aponte para a fonte enviada pelo cliente.
+const COURSES = [
+  "Formação Completa em Pilates (Presencial)",
+  "Formação Completa em Pilates (Online)",
+  "Turma Especial",
+  "Pilates Clínico",
+  "Pilates para Gestantes",
+  "Pilates para Idosos",
+  "Mat Pilates (Solo)",
+  "Pilates Avançado (Aparelhos)"
+];
+function courseOptions(current) {
+  const base = (current && COURSES.indexOf(current) < 0) ? [current, ...COURSES] : COURSES.slice();
+  return base;
+}
+
+
 // Metas comerciais (admin define).
 // Fases de atendimento (pipeline macro para monitorar no dashboard).
 const PHASES = ["Novo", "Tentando contato", "Apresentação", "Promessa de pagamento", "Pago"];
@@ -4790,7 +4896,12 @@ function Liberacao({
       fontSize: 12,
       color: s.clientEmail ? C.muted : C.danger
     }
-  }, s.clientEmail || "sem e-mail")), /*#__PURE__*/React.createElement(Btn, {
+  }, s.clientEmail || "sem e-mail")), /*#__PURE__*/React.createElement("select", {
+    value: s.product || "",
+    onChange: e => setSales(ss => ss.map(x => x.id === s.id ? { ...x, product: e.target.value } : x)),
+    title: "Produto / curso",
+    style: { padding: 8, border: `1px solid ${C.line}`, borderRadius: 8, fontFamily: "inherit", fontSize: 12, maxWidth: 220 }
+  }, courseOptions(s.product).map(cn => /*#__PURE__*/React.createElement("option", { key: cn, value: cn }, cn))), /*#__PURE__*/React.createElement(Btn, {
     small: true,
     onClick: () => liberarOnline(s)
   }, "Liberar acesso"))))), /*#__PURE__*/React.createElement(Card, {
@@ -4839,7 +4950,12 @@ function Liberacao({
       fontSize: 12,
       color: C.muted
     }
-  }, s.product, " · ", s.consultant)), /*#__PURE__*/React.createElement(Btn, {
+  }, s.product, " · ", s.consultant)), /*#__PURE__*/React.createElement("select", {
+    value: s.product || "",
+    onChange: e => setSales(ss => ss.map(x => x.id === s.id ? { ...x, product: e.target.value } : x)),
+    title: "Produto / curso",
+    style: { padding: 8, border: `1px solid ${C.line}`, borderRadius: 8, fontFamily: "inherit", fontSize: 12, maxWidth: 220 }
+  }, courseOptions(s.product).map(cn => /*#__PURE__*/React.createElement("option", { key: cn, value: cn }, cn))), /*#__PURE__*/React.createElement(Btn, {
     small: true,
     onClick: () => confirmarPresencial(s)
   }, "Confirmar matrícula")))))), /*#__PURE__*/React.createElement("div", {
@@ -5019,13 +5135,15 @@ function NewLeadForm({
   leads,
   onCreate,
   me,
-  go
+  go,
+  classes
 }) {
   const [f, setF] = useState({
     name: "",
     phone: "",
     email: "",
     city: "",
+    state: "",
     salesType: "Presencial",
     origem: "WhatsApp",
     interesse: "Formação Presencial"
@@ -5056,6 +5174,7 @@ function NewLeadForm({
       phone: "",
       email: "",
       city: "",
+      state: "",
       salesType: "Presencial",
       origem: "WhatsApp",
       interesse: "Formação Presencial"
@@ -5064,6 +5183,9 @@ function NewLeadForm({
     if (then) go?.(then);
   };
   const origens = ["WhatsApp", "Instagram", "Tráfego pago", "Indicação", "Evento", "Landing page", "Site", "Lista interna", "Presencial"];
+  const _cls = classes || [];
+  const estadosUF = [...new Set(_cls.map(c => c.state))].filter(s => s && s !== "—").sort();
+  const cidadesUF = [...new Set(_cls.filter(c => c.state === f.state).map(c => c.city))].sort((a, b) => a.localeCompare(b));
   const passos = [["1", "Cadastrar cliente", true], ["2", "Atender / proposta", false], ["3", "Encaixar em turma", false], ["4", "Efetivar venda", false]];
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -5128,12 +5250,30 @@ function NewLeadForm({
       color: C.muted,
       margin: "4px 0 16px"
     }
-  }, "Checagem de duplicidade por telefone e e-mail — protege a carteira."), [["Nome", "name"], ["Telefone/WhatsApp", "phone"], ["E-mail", "email"], ["Cidade", "city"]].map(([label, k]) => /*#__PURE__*/React.createElement(Input, {
+  }, "Checagem de duplicidade por telefone e e-mail — protege a carteira."), [["Nome", "name"], ["Telefone/WhatsApp", "phone"], ["E-mail", "email"]].map(([label, k]) => /*#__PURE__*/React.createElement(Input, {
     key: k,
     label: label,
     value: f[k],
     onChange: set(k)
   })), /*#__PURE__*/React.createElement("div", {
+    style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: { fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }
+  }, "Estado"), /*#__PURE__*/React.createElement("select", {
+    value: f.state,
+    onChange: e => setF({ ...f, state: e.target.value, city: "" }),
+    style: { width: "100%", padding: 10, border: `1px solid ${C.line}`, borderRadius: 9, fontFamily: "inherit" }
+  }, /*#__PURE__*/React.createElement("option", { value: "" }, "Selecione o estado"), estadosUF.map(uf => /*#__PURE__*/React.createElement("option", {
+    key: uf, value: uf
+  }, (UF_NOMES[uf] || uf) + " (" + uf + ")")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: { fontSize: 12, color: C.muted, display: "block", marginBottom: 6 }
+  }, "Cidade"), /*#__PURE__*/React.createElement("input", {
+    list: "cidades-novo", value: f.city, onChange: set("city"), disabled: !f.state,
+    placeholder: f.state ? "Cidade…" : "Escolha o estado primeiro",
+    style: { width: "100%", padding: 10, border: `1px solid ${C.line}`, borderRadius: 9, fontFamily: "inherit", background: f.state ? "#fff" : "#F3F4F6" }
+  }), /*#__PURE__*/React.createElement("datalist", { id: "cidades-novo" }, cidadesUF.map(ct => /*#__PURE__*/React.createElement("option", {
+    key: ct, value: ct
+  }))))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -5735,6 +5875,21 @@ function App() {
     }),
     msg
   }, ...f].slice(0, 40));
+  const [syncTurmas, setSyncTurmas] = useState("idle");
+  useEffect(() => {
+    setSyncTurmas("loading");
+    loadLiveClasses().then(live => {
+      if (live && live.length) {
+        setClasses(prev => {
+          const especiais = prev.filter(c => c.special);
+          return [...live, ...especiais];
+        });
+        setSyncTurmas("ok:" + live.length);
+      } else {
+        setSyncTurmas("fallback");
+      }
+    }).catch(() => setSyncTurmas("fallback"));
+  }, []);
   if (!session) return /*#__PURE__*/React.createElement(Login, {
     users: users,
     onLogin: u => {
@@ -6198,7 +6353,8 @@ function Shell({
     leads: leads,
     onCreate: addLead,
     me: me,
-    go: go
+    go: go,
+    classes: classes
   }), view === "comprovantes" && /*#__PURE__*/React.createElement(Comprovantes, {
     proofs: proofs,
     setProofs: setProofs,

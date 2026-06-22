@@ -123,7 +123,8 @@ function mapTurmaToClasses(t) {
 }
 function loadLiveClasses() {
   const pages = [1, 2];
-  const url = p => WP_API + "/turmas?per_page=100&page=" + p + "&_fields=id,title,class_list,acf,estados";
+  const PROXY = "https://corsproxy.io/?url=";
+  const url = p => PROXY + encodeURIComponent(WP_API + "/turmas?per_page=100&page=" + p + "&_fields=id,title,class_list,acf,estados");
   return Promise.all(pages.map(p => fetch(url(p)).then(r => r.ok ? r.json() : []).catch(() => [])))
     .then(parts => {
       const all = [].concat.apply([], parts);

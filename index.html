@@ -3777,112 +3777,70 @@ function inPeriod(dateStr, p) {
 
 // ---------------- Vagas em tempo real ----------------
 function Vagas({
+  classes,
   onAudit
 }) {
-  const [vagas] = useState(seedVagas);
+  const [uf, setUf] = useState("");
   const [live, setLive] = useState(true);
-  const tone = (free, total) => free === 0 ? "danger" : free <= total * 0.2 ? "warn" : "ok";
-  const totalFree = vagas.reduce((s, v) => s + (v.total - v.taken), 0);
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Card, {
-    style: {
-      marginBottom: 14,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      flexWrap: "wrap",
-      gap: 10,
-      background: live ? C.okSoft : C.panel,
-      borderColor: live ? "#BFE0CC" : C.line
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 10,
-      height: 10,
-      borderRadius: 99,
-      background: live ? C.ok : C.muted,
-      display: "inline-block",
-      animation: live ? "pulse 1.5s infinite" : "none"
-    }
-  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", {
-    style: {
-      fontSize: 14
-    }
-  }, live ? "Sincronizando em tempo real" : "Pausado"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.muted
-    }
-  }, totalFree, " vagas livres no Brasil · fonte: portal VOLL (preparado para webhook)"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("a", {
-    href: TURMAS_URL,
-    target: "_blank",
-    rel: "noreferrer"
-  }, /*#__PURE__*/React.createElement(Btn, {
-    small: true,
-    variant: "ghost"
-  }, "Ver portal ↗")), /*#__PURE__*/React.createElement(Btn, {
-    small: true,
-    variant: "ghost",
-    onClick: () => setLive(!live)
-  }, live ? "Pausar" : "Retomar"))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))",
-      gap: 12
-    }
-  }, vagas.map((v, i) => {
-    const free = v.total - v.taken;
-    return /*#__PURE__*/React.createElement(Card, {
-      key: i
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "start"
-      }
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", {
-      style: {
-        fontSize: 14
-      }
-    }, v.city), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12,
-        color: C.muted
-      }
-    }, v.state, " · ", v.date)), /*#__PURE__*/React.createElement(Badge, {
-      tone: tone(free, v.total)
-    }, free === 0 ? "Esgotada" : `${free} livre(s)`)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginTop: 12,
-        height: 8,
-        background: C.line,
-        borderRadius: 99,
-        overflow: "hidden"
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: `${v.taken / v.total * 100}%`,
-        height: "100%",
-        background: free === 0 ? C.danger : free <= v.total * 0.2 ? C.warn : C.brand
-      }
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: C.muted,
-        marginTop: 5
-      }
-    }, v.taken, "/", v.total, " preenchidas"));
-  })), /*#__PURE__*/React.createElement("style", null, `@keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}`));
+  const cls = (classes || []).filter(function (c) { return c.source === "live" || c.state; });
+  const estados = Array.from(new Set(cls.map(function (c) { return c.state; }))).filter(function (s) { return s && s !== "—"; }).sort();
+  const map = {};
+  cls.filter(function (c) { return !uf || c.state === uf; }).forEach(function (c) {
+    const k = c.state + "|" + c.city;
+    if (!map[k]) map[k] = { city: c.city, state: c.state, total: 0, esg: 0, free: 0, date: c.date };
+    const m = map[k];
+    m.total++;
+    if (c.status === "ESGOTADA") m.esg++;
+    else m.free += (Number(c.seats) || 0);
+  });
+  const cities = Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.state.localeCompare(b.state) || a.city.localeCompare(b.city); });
+  const totalFree = cities.reduce(function (s, m) { return s + m.free; }, 0);
+  return h("div", null,
+    h(Card, {
+      style: { marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, background: live ? C.okSoft : C.panel, borderColor: live ? "#BFE0CC" : C.line }
+    },
+      h("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+        h("span", { style: { width: 10, height: 10, borderRadius: 99, background: live ? C.ok : C.muted, display: "inline-block", animation: live ? "pulse 1.5s infinite" : "none" } }),
+        h("div", null,
+          h("strong", { style: { fontSize: 14 } }, live ? "Sincronizando em tempo real" : "Pausado"),
+          h("div", { style: { fontSize: 12, color: C.muted } }, totalFree + " vagas livres" + (uf ? " em " + uf : " no Brasil") + " · " + cities.length + " cidade(s) · fonte: portal VOLL ao vivo")
+        )
+      ),
+      h("div", { style: { display: "flex", gap: 8 } },
+        h("a", { href: TURMAS_URL, target: "_blank", rel: "noreferrer" }, h(Btn, { small: true, variant: "ghost" }, "Ver portal ↗")),
+        h(Btn, { small: true, variant: "ghost", onClick: function () { setLive(!live); } }, live ? "Pausar" : "Retomar")
+      )
+    ),
+    h("div", { style: { display: "flex", gap: 6, marginBottom: 14, alignItems: "center", flexWrap: "wrap" } },
+      h("span", { style: { fontSize: 13, color: C.muted } }, "Estado:"),
+      h(Btn, { small: true, variant: uf === "" ? "primary" : "ghost", onClick: function () { setUf(""); } }, "Todos"),
+      estados.map(function (s) { return h(Btn, { key: s, small: true, variant: uf === s ? "primary" : "ghost", onClick: function () { setUf(s); } }, s); })
+    ),
+    cls.length === 0
+      ? h(Card, null, h("div", { style: { fontSize: 13, color: C.muted } }, "Carregando vagas do portal VOLL…"))
+      : h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 } },
+          cities.map(function (m, i) {
+            const free = m.free;
+            const open = m.total - m.esg;
+            const tone = free === 0 ? "danger" : open <= Math.ceil(m.total * 0.3) ? "warn" : "ok";
+            const fill = m.total ? Math.round(m.esg / m.total * 100) : 0;
+            return h(Card, { key: i },
+              h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "start" } },
+                h("div", null,
+                  h("strong", { style: { fontSize: 14 } }, m.city),
+                  h("div", { style: { fontSize: 12, color: C.muted } }, m.state + " · " + m.total + " turma(s)")
+                ),
+                h(Badge, { tone: tone }, free === 0 ? "Esgotada" : free + " vaga(s)")
+              ),
+              h("div", { style: { marginTop: 12, height: 8, background: C.line, borderRadius: 99, overflow: "hidden" } },
+                h("div", { style: { width: fill + "%", height: "100%", background: free === 0 ? C.danger : open <= Math.ceil(m.total * 0.3) ? C.warn : C.brand } })
+              ),
+              h("div", { style: { fontSize: 11, color: C.muted, marginTop: 5 } }, open + "/" + m.total + " turma(s) com vaga")
+            );
+          })
+        ),
+    h("style", null, "@keyframes pulse{0%{opacity:1}50%{opacity:.3}100%{opacity:1}}")
+  );
 }
 
 // ---------------- Ranking / premiação ----------------
@@ -6475,6 +6433,7 @@ function Shell({
     onAudit: addAudit,
     onEncaixe: c => addAudit(`Lead encaixado na turma ${c.city}/${c.state} (${c.date})`)
   }), view === "vagas" && /*#__PURE__*/React.createElement(Vagas, {
+    classes: classes,
     onAudit: addAudit
   }), view === "precos" && /*#__PURE__*/React.createElement(Precos, {
     pricing: pricing,

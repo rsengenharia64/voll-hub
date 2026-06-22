@@ -6,6 +6,7 @@
 <title>VOLL Commercial Automation Hub</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -48,6 +49,11 @@ const DATASTUDIO_URL = "https://datastudio.google.com/u/1/reporting/a0ae3ed7-dc8
 // Fonte oficial: API WordPress de cursodepilates.com.br (CORS aberto).
 // ============================================================
 const WP_API = "https://cursodepilates.com.br/wp-json/wp/v2";
+// Backend Supabase (leads ao vivo do Tallos / RD Conversas)
+const SUPABASE_URL = "https://syrnnhzqineeqmbrskup.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Gviz1CT_dAYU9jECmwIf6g_n88-uHF6";
+const sbClient = (typeof window !== "undefined" && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const h = React.createElement;
 const UF_NOMES = {
   AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia",
   CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
@@ -516,11 +522,11 @@ const ROLES = {
 };
 // O que cada papel acessa (telas).
 const CAN = {
-  CEO: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
-  ADMIN: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
-  DIRETOR: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
-  GERENTE: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
-  CONSULTOR: ["guia", "meu", "ranking", "vendas", "kanban", "novo", "distribuicao", "turmas", "vagas", "precos", "comprovantes", "ia"],
+  CEO: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
+  ADMIN: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
+  DIRETOR: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
+  GERENTE: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
+  CONSULTOR: ["guia", "meu", "ranking", "vendas", "kanban", "novo", "distribuicao", "aovivo", "turmas", "vagas", "precos", "comprovantes", "ia"],
   FINANCEIRO: ["guia", "comprovantes", "comissao", "vendas", "relatorios", "logs"],
   MARKETING: ["guia", "liberacao", "relatorios", "logs"]
 };
@@ -3307,7 +3313,7 @@ function Turmas({
     style: {
       fontSize: 14
     }
-  }, c.product), " ", c.special && /*#__PURE__*/React.createElement(Badge, {
+  }, c.product), c.turno ? /*#__PURE__*/React.createElement("span", { style: { fontSize: 12, color: C.muted, marginLeft: 6 } }, "· Turma " + c.turno) : "", " ", c.special && /*#__PURE__*/React.createElement(Badge, {
     tone: "accent"
   }, "Especial"), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -5813,7 +5819,7 @@ const ALL_NAV = [{
   items: [["exec", "Dashboard executivo"], ["meu", "Meu painel"], ["equipes", "Equipes / Gerentes"], ["consultores", "Consultores"], ["ranking", "Ranking / Premiação"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão auto"], ["relatorios", "Relatórios"]]
 }, {
   label: "Operação",
-  items: [["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["vagas", "Vagas em tempo real"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
+  items: [["aovivo", "Leads ao vivo (Tallos)"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["vagas", "Vagas em tempo real"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
 }, {
   label: "Administração",
   items: [["usuarios", "Usuários"], ["integracoes", "Integrações"], ["sync", "Sincronização"], ["logs", "Logs e auditoria"]]
@@ -5842,6 +5848,73 @@ const TITLES = {
   sync: "Sincronização de dados",
   logs: "Logs e auditoria"
 };
+function LeadsAoVivo({ me, role }) {
+  const [leads, setLeads] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState("");
+  const load = function () {
+    if (!sbClient) { setMsg("Conexão Supabase indisponível."); return; }
+    sbClient.from("leads").select("*").order("created_at", { ascending: false }).limit(200).then(function (res) {
+      if (!res.error && res.data) setLeads(res.data);
+    });
+  };
+  useEffect(function () {
+    load();
+    if (!sbClient) return;
+    const ch = sbClient.channel("leads-rt").on("postgres_changes", { event: "*", schema: "public", table: "leads" }, function () { load(); }).subscribe();
+    return function () { try { sbClient.removeChannel(ch); } catch (e) {} };
+  }, []);
+  const pegar = function (lead) {
+    if (!sbClient) return;
+    setBusy(lead.id);
+    sbClient.rpc("claim_lead", { p_lead_id: lead.id, p_owner: me }).then(function (res) {
+      setBusy(null);
+      if (res.error) { setMsg("Erro ao pegar: " + res.error.message); }
+      else if (res.data && res.data.owner) { setMsg("✓ Você pegou " + (res.data.name || "o lead") + "!"); }
+      else { setMsg("⚠ Esse lead já foi pego por outro consultor."); }
+      load();
+    });
+  };
+  const pool = leads.filter(function (l) { return !l.owner; });
+  const meus = leads.filter(function (l) { return l.owner === me; });
+  const outros = leads.filter(function (l) { return l.owner && l.owner !== me; });
+  const card = function (l, showBtn) {
+    return h("div", { key: l.id, style: { border: "1px solid " + C.line, borderRadius: 10, padding: 12, marginBottom: 8, background: C.panel } },
+      h("div", { style: { display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" } },
+        h("div", { style: { minWidth: 200 } },
+          h("strong", { style: { fontSize: 14, color: C.ink } }, l.name || "Lead"),
+          h("span", { style: { fontSize: 12, color: C.muted, marginLeft: 8 } }, (l.channel || "") + (l.phone ? " · " + l.phone : "")),
+          h("div", { style: { fontSize: 13, color: C.ink2, marginTop: 4 } }, l.message || ""),
+          h("div", { style: { fontSize: 12, color: C.muted, marginTop: 4 } }, (l.city ? l.city + (l.state ? "/" + l.state : "") + " · " : "") + (l.created_at ? new Date(l.created_at).toLocaleString("pt-BR") : ""))
+        ),
+        h("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+          l.owner ? h(Badge, { tone: l.owner === me ? "ok" : "muted" }, l.owner === me ? "Você" : l.owner) : (showBtn ? h(Btn, { small: true, disabled: busy === l.id, onClick: function () { pegar(l); } }, busy === l.id ? "..." : "Pegar lead") : null)
+        )
+      )
+    );
+  };
+  return h("div", null,
+    h(Card, { style: { marginBottom: 12 } },
+      h("strong", { style: { fontSize: 15, color: C.ink } }, "Leads ao vivo — Tallos / RD Conversas"),
+      h("p", { style: { fontSize: 13, color: C.muted, margin: "4px 0 0" } }, "Os leads que chegam no WhatsApp caem aqui em tempo real. Quem clica em \"Pegar\" primeiro vira o dono — os outros não conseguem mais."),
+      msg ? h("div", { style: { marginTop: 8, fontSize: 13, fontWeight: 700, color: C.brand } }, msg) : null
+    ),
+    h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } },
+      h(Card, { style: { borderTop: "3px solid " + C.accent } },
+        h("strong", { style: { fontSize: 14, color: C.ink } }, "Disponíveis (" + pool.length + ")"),
+        h("div", { style: { marginTop: 10 } }, pool.length ? pool.map(function (l) { return card(l, true); }) : h("div", { style: { fontSize: 13, color: C.muted } }, "Nenhum lead novo no momento."))
+      ),
+      h(Card, { style: { borderTop: "3px solid " + C.brand } },
+        h("strong", { style: { fontSize: 14, color: C.ink } }, "Meus atendimentos (" + meus.length + ")"),
+        h("div", { style: { marginTop: 10 } }, meus.length ? meus.map(function (l) { return card(l, false); }) : h("div", { style: { fontSize: 13, color: C.muted } }, "Você ainda não pegou nenhum lead."))
+      )
+    ),
+    outros.length ? h(Card, { style: { marginTop: 12 } },
+      h("strong", { style: { fontSize: 14, color: C.ink } }, "Em atendimento por outros (" + outros.length + ")"),
+      h("div", { style: { marginTop: 10 } }, outros.map(function (l) { return card(l, false); }))
+    ) : null
+  );
+}
 function App() {
   const [users, setUsers] = useState(seedUsers);
   const [session, setSession] = useState(null);
@@ -6327,6 +6400,9 @@ function Shell({
     leads: leads,
     consultants: seedConsultants,
     sales: sales
+  }), view === "aovivo" && /*#__PURE__*/React.createElement(LeadsAoVivo, {
+    me: me,
+    role: role
   }), view === "distribuicao" && /*#__PURE__*/React.createElement(Distribuicao, {
     onAudit: addAudit,
     me: me,

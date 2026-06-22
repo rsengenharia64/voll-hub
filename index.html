@@ -5854,10 +5854,65 @@ function LeadsAoVivo({ me, role }) {
   const [leads, setLeads] = useState([]);
   const [busy, setBusy] = useState(null);
   const [msg, setMsg] = useState("");
+  const [alertsOn, setAlertsOn] = useState(false);
+  const [novos, setNovos] = useState(0);
+  const seenRef = useRef(null);
+  const audioRef = useRef(null);
+  const playBeep = function () {
+    try {
+      let ctx = audioRef.current;
+      if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); audioRef.current = ctx; }
+      if (ctx.state === "suspended") ctx.resume();
+      [0, 0.18].forEach(function (t) {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = 880;
+        o.connect(g); g.connect(ctx.destination);
+        const n = ctx.currentTime + t;
+        g.gain.setValueAtTime(0.0001, n);
+        g.gain.exponentialRampToValueAtTime(0.25, n + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, n + 0.14);
+        o.start(n); o.stop(n + 0.16);
+      });
+    } catch (e) {}
+  };
+  const enableAlerts = function () {
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioRef.current.state === "suspended") audioRef.current.resume();
+    } catch (e) {}
+    if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
+      try { Notification.requestPermission(); } catch (e) {}
+    }
+    setAlertsOn(true);
+    playBeep();
+  };
+  const notify = function (novosLeads) {
+    playBeep();
+    setNovos(novosLeads.length);
+    setTimeout(function () { setNovos(0); }, 6000);
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      const l = novosLeads[0];
+      try {
+        new Notification("🔔 Novo lead — VOLL", {
+          body: (l.name || "Lead") + (l.city ? " · " + l.city + "/" + (l.state || "") : "") + (novosLeads.length > 1 ? " (+" + (novosLeads.length - 1) + ")" : "")
+        });
+      } catch (e) {}
+    }
+  };
   const load = function () {
     if (!sbClient) { setMsg("Conexão Supabase indisponível."); return; }
     sbClient.from("leads").select("*").order("created_at", { ascending: false }).limit(200).then(function (res) {
-      if (!res.error && res.data) setLeads(res.data);
+      if (res.error || !res.data) return;
+      const poolIds = res.data.filter(function (l) { return !l.owner; }).map(function (l) { return l.id; });
+      if (seenRef.current === null) {
+        seenRef.current = {};
+        poolIds.forEach(function (id) { seenRef.current[id] = true; });
+      } else {
+        const novosLeads = res.data.filter(function (l) { return !l.owner && !seenRef.current[l.id]; });
+        poolIds.forEach(function (id) { seenRef.current[id] = true; });
+        if (novosLeads.length) notify(novosLeads);
+      }
+      setLeads(res.data);
     });
   };
   useEffect(function () {
@@ -5897,10 +5952,16 @@ function LeadsAoVivo({ me, role }) {
   };
   return h("div", null,
     h(Card, { style: { marginBottom: 12 } },
-      h("strong", { style: { fontSize: 15, color: C.ink } }, "Leads ao vivo — Tallos / RD Conversas"),
+      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+        h("strong", { style: { fontSize: 15, color: C.ink } }, "Leads ao vivo — Tallos / RD Conversas"),
+        alertsOn
+          ? h(Badge, { tone: "ok" }, "🔔 Alertas ativados")
+          : h(Btn, { small: true, onClick: enableAlerts }, "🔔 Ativar alertas (som + aviso)")
+      ),
       h("p", { style: { fontSize: 13, color: C.muted, margin: "4px 0 0" } }, "Os leads que chegam no WhatsApp caem aqui em tempo real. Quem clica em \"Pegar\" primeiro vira o dono — os outros não conseguem mais."),
       msg ? h("div", { style: { marginTop: 8, fontSize: 13, fontWeight: 700, color: C.brand } }, msg) : null
     ),
+    novos > 0 ? h("div", { style: { marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: C.accentSoft, border: "1px solid " + C.accent, color: C.accent, fontWeight: 700, fontSize: 14 } }, "🔔 " + novos + " novo(s) lead(s) chegaram agora!") : null,
     h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } },
       h(Card, { style: { borderTop: "3px solid " + C.accent } },
         h("strong", { style: { fontSize: 14, color: C.ink } }, "Disponíveis (" + pool.length + ")"),

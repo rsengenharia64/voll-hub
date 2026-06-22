@@ -5857,6 +5857,7 @@ function LeadsAoVivo({ me, role }) {
   const [alertsOn, setAlertsOn] = useState(false);
   const [novos, setNovos] = useState(0);
   const seenRef = useRef(null);
+  const prevCountRef = useRef(null);
   const audioRef = useRef(null);
   const playBeep = function () {
     try {
@@ -5886,15 +5887,14 @@ function LeadsAoVivo({ me, role }) {
     setAlertsOn(true);
     playBeep();
   };
-  const notify = function (novosLeads) {
+  const notify = function (n, lead) {
     playBeep();
-    setNovos(novosLeads.length);
+    setNovos(n);
     setTimeout(function () { setNovos(0); }, 6000);
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      const l = novosLeads[0];
+    if (typeof Notification !== "undefined" && Notification.permission === "granted" && lead) {
       try {
         new Notification("🔔 Novo lead — VOLL", {
-          body: (l.name || "Lead") + (l.city ? " · " + l.city + "/" + (l.state || "") : "") + (novosLeads.length > 1 ? " (+" + (novosLeads.length - 1) + ")" : "")
+          body: (lead.name || "Lead") + (lead.city ? " · " + lead.city + "/" + (lead.state || "") : "") + (n > 1 ? " (+" + (n - 1) + ")" : "")
         });
       } catch (e) {}
     }
@@ -5908,16 +5908,16 @@ function LeadsAoVivo({ me, role }) {
   useEffect(function () {
     load();
     if (!sbClient) return;
-    const ch = sbClient.channel("leads-rt")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leads" }, function (payload) {
-        if (payload && payload.new && !payload.new.owner) notify([payload.new]);
-        load();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "leads" }, function () { load(); })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "leads" }, function () { load(); })
-      .subscribe();
+    const ch = sbClient.channel("leads-rt").on("postgres_changes", { event: "*", schema: "public", table: "leads" }, function () { load(); }).subscribe();
     return function () { try { sbClient.removeChannel(ch); } catch (e) {} };
   }, []);
+  useEffect(function () {
+    const pool = leads.filter(function (l) { return !l.owner; });
+    if (prevCountRef.current !== null && pool.length > prevCountRef.current) {
+      notify(pool.length - prevCountRef.current, pool[0]);
+    }
+    prevCountRef.current = pool.length;
+  }, [leads]);
   const pegar = function (lead) {
     if (!sbClient) return;
     setBusy(lead.id);

@@ -2912,7 +2912,10 @@ function Turmas({
   role,
   me,
   onAudit,
-  onEncaixe
+  onEncaixe,
+  activeLead,
+  onLeadUpdate,
+  go
 }) {
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
@@ -2928,6 +2931,12 @@ function Turmas({
     specialPrice: 1950,
     specialInstallment: 187.5
   });
+  useEffect(function () {
+    if (activeLead) {
+      if (activeLead.state && activeLead.state !== "—") setState(activeLead.state);
+      if (activeLead.city) setCity(activeLead.city);
+    }
+  }, [activeLead ? activeLead.id : null]);
   const isManager = role === "GERENTE" || role === "DIRETOR" || role === "ADMIN" || role === "CEO";
   const states = [...new Set(classes.map(c => c.state))].filter(s => s !== "—").sort();
   const filtered = classes.filter(c => (!state || c.state === state) && (!city || c.city.toLowerCase().includes(city.toLowerCase())));
@@ -2955,11 +2964,20 @@ function Turmas({
     setCopied(false);
     onAudit?.(`Informa\u00e7\u00f5es da turma ${c.city}/${c.state} preparadas para o lead`);
   };
+  const propostaMsg = function (p) {
+    if (!p) return "";
+    const c = p.turma, val = p.val || 1950, inst = p.inst || 188;
+    const nome = activeLead ? (activeLead.name || "") : "";
+    const curso = (activeLead && activeLead.interesse) ? activeLead.interesse : (c.product || "Formação Completa em Pilates");
+    return "*Proposta VOLL Pilates*\n" + (nome ? "Olá " + nome + "! " : "") + "Segue sua proposta:\n\n" + "Curso: " + curso + "\n" + "Turma: " + c.city + "/" + c.state + (c.turno ? " · Turma " + c.turno : "") + "\n" + "Datas: " + (c.date || "a definir") + "\n" + (c.horario ? "Horário: " + c.horario + "\n" : "") + (c.location ? "Local: " + c.location + "\n" : "") + "Investimento: " + fmtBRL(val) + " à vista (Pix) ou 12x de " + fmtBRL(inst) + " no cartão\n\nPosso garantir sua vaga? 😊";
+  };
   const encaixar = c => {
-    setPanel({
-      type: "encaixe",
-      turma: c
-    });
+    const val = c.specialPrice || 1950, inst = c.specialInstallment || 188;
+    if (activeLead && onLeadUpdate) {
+      onLeadUpdate(activeLead.id, { stage: "Encaixado em turma", value: val, turma: { city: c.city, state: c.state, date: c.date, product: c.product, turno: c.turno || "", horario: c.horario || "", value: val, installment: inst } });
+    }
+    setPanel({ type: "proposta", turma: c, val: val, inst: inst });
+    setCopied(false);
     onEncaixe?.(c);
   };
   const copy = () => {
@@ -3235,34 +3253,7 @@ function Turmas({
   }, /*#__PURE__*/React.createElement(Btn, {
     small: true,
     variant: "ghost"
-  }, "Enviar no WhatsApp ↗")))) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      flexWrap: "wrap",
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", {
-    style: {
-      fontSize: 14,
-      color: C.brand
-    }
-  }, "✓ Lead encaixado"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      color: C.muted
-    }
-  }, panel.turma.product, " — ", panel.turma.city, "/", panel.turma.state, " · ", panel.turma.date, ". Vaga validada e levada à proposta.")), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setPanel(null),
-    style: {
-      border: "none",
-      background: "none",
-      cursor: "pointer",
-      fontSize: 16,
-      color: C.muted
-    }
-  }, "✕"))), /*#__PURE__*/React.createElement("div", {
+  }, "Enviar no WhatsApp ↗")))) : h("div", null, h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } }, h("strong", { style: { fontSize: 14, color: C.brand } }, "✓ " + (activeLead ? activeLead.name : "Lead") + " encaixado — envie a proposta"), h("button", { onClick: function () { setPanel(null); }, style: { border: "none", background: "none", cursor: "pointer", fontSize: 16, color: C.muted } }, "✕")), h("div", { style: { whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.5, background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 14 } }, propostaMsg(panel)), h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 } }, h("a", { href: "https://wa.me/" + (activeLead && activeLead.phone ? String(activeLead.phone).replace(/\D/g, "") : "") + "?text=" + encodeURIComponent(propostaMsg(panel)), target: "_blank", rel: "noreferrer" }, h(Btn, { small: true }, "Enviar proposta no WhatsApp ↗")), h(Btn, { small: true, variant: "ghost", onClick: function () { if (navigator.clipboard) navigator.clipboard.writeText(propostaMsg(panel)); setCopied(true); } }, copied ? "Copiado ✓" : "Copiar proposta"), h(Btn, { small: true, variant: "ghost", onClick: function () { if (activeLead && onLeadUpdate) onLeadUpdate(activeLead.id, { stage: "Proposta enviada" }); if (onAudit) onAudit("Proposta marcada como enviada" + (activeLead ? " para " + activeLead.name : "")); setPanel(null); } }, "Marcar como proposta enviada"), h(Btn, { small: true, variant: "ghost", onClick: function () { if (go) go("kanban"); } }, "Voltar para funil")))), (activeLead ? h(Card, { style: { marginBottom: 14, background: C.brandSoft, borderColor: "#CFE3DC", position: "sticky", top: 0, zIndex: 5 } }, h("div", { style: { fontSize: 12, color: C.muted } }, "Lead selecionado"), h("strong", { style: { fontSize: 15, color: C.ink } }, activeLead.name), h("div", { style: { fontSize: 13, color: C.ink2, marginTop: 2 } }, (activeLead.interesse || "") + (activeLead.city ? " · " + activeLead.city + (activeLead.state && activeLead.state !== "—" ? "/" + activeLead.state : "") : "") + (activeLead.phone ? " · " + activeLead.phone : ""))) : null), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8,
@@ -3344,7 +3335,7 @@ function Turmas({
     variant: c.status === "ESGOTADA" ? "ghost" : "accent",
     disabled: c.status === "ESGOTADA",
     onClick: () => encaixar(c)
-  }, "Encaixar lead")))), filtered.length === 0 && /*#__PURE__*/React.createElement(Card, {
+  }, activeLead ? "Encaixar " + String(activeLead.name || "lead").split(" ")[0] : "Encaixar lead")))), filtered.length === 0 && /*#__PURE__*/React.createElement(Card, {
     style: {
       textAlign: "center",
       color: C.muted,
@@ -5048,7 +5039,8 @@ function Kanban({
   leads,
   onOpen
 }) {
-  const cols = ["Novo", "Em atendimento", "Proposta enviada", "Pagamento pendente", "Pago", "Vaga garantida"];
+  const norm = function (s) { return ({ "Pagamento pendente": "Proposta enviada", "Pago": "Venda efetivada", "Vaga garantida": "Encaixado em turma", "Qualificado": "Em atendimento" })[s] || s; };
+  const cols = ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Pós-venda", "Perdido"];
   return /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
@@ -5072,7 +5064,7 @@ function Kanban({
       textTransform: "uppercase",
       letterSpacing: 0.4
     }
-  }, col, " · ", leads.filter(l => l.stage === col).length), leads.filter(l => l.stage === col).map(l => /*#__PURE__*/React.createElement("div", {
+  }, col, " · ", leads.filter(l => norm(l.stage) === col).length), leads.filter(l => norm(l.stage) === col).map(l => /*#__PURE__*/React.createElement("div", {
     key: l.id,
     onClick: () => onOpen(l),
     style: {
@@ -5116,6 +5108,7 @@ function NewLeadForm({
     interesse: "Formação Presencial"
   });
   const [alert, setAlert] = useState(null);
+  const [saved, setSaved] = useState(null);
   const set = k => e => setF({
     ...f,
     [k]: e.target.value
@@ -5130,30 +5123,40 @@ function NewLeadForm({
       type: "ok"
     });
   };
+  const blank = { name: "", phone: "", email: "", city: "", state: "", salesType: "Presencial", origem: "WhatsApp", interesse: "Formação Presencial" };
   const create = then => {
-    onCreate({
-      ...f,
-      phone: normPhone(f.phone),
-      consultant: me
-    });
-    setF({
-      name: "",
-      phone: "",
-      email: "",
-      city: "",
-      state: "",
-      salesType: "Presencial",
-      origem: "WhatsApp",
-      interesse: "Formação Presencial"
-    });
+    const lead = onCreate({ ...f, phone: normPhone(f.phone), consultant: me });
     setAlert(null);
-    if (then) go?.(then);
+    if (then === "turmas") { if (go) go("turmas"); return; }
+    setSaved(lead);
   };
   const origens = ["WhatsApp", "Instagram", "Tráfego pago", "Indicação", "Evento", "Landing page", "Site", "Lista interna", "Presencial"];
   const _cls = classes || [];
   const estadosUF = [...new Set(_cls.map(c => c.state))].filter(s => s && s !== "—").sort();
   const cidadesUF = [...new Set(_cls.filter(c => c.state === f.state).map(c => c.city))].sort((a, b) => a.localeCompare(b));
   const passos = [["1", "Cadastrar cliente", true], ["2", "Atender / proposta", false], ["3", "Encaixar em turma", false], ["4", "Efetivar venda", false]];
+  if (saved) return h("div", { style: { maxWidth: 620 } },
+    h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 } },
+      ["Cadastrar", "Atender/proposta", "Encaixar", "Efetivar venda", "Pós-fechamento"].map(function (s, i) {
+        return h("span", { key: s, style: { padding: "5px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700, background: i <= 1 ? C.brand : C.line, color: i <= 1 ? "#fff" : C.muted } }, (i + 1) + ". " + s);
+      })
+    ),
+    h(Card, { style: { borderTop: "3px solid " + C.brand } },
+      h("div", { style: { fontSize: 15, fontWeight: 700, color: C.brand, marginBottom: 4 } }, "✓ Lead cadastrado com sucesso"),
+      h("div", { style: { fontSize: 14, color: C.ink, marginBottom: 14 } }, "Próximo passo: enviar proposta ou encaixar em turma."),
+      h("div", { style: { background: C.brandSoft, border: "1px solid #CFE3DC", borderRadius: 10, padding: 14, fontSize: 14, lineHeight: 1.8 } },
+        h("div", null, h("b", null, "Lead: "), saved.name || "—"),
+        h("div", null, h("b", null, "Telefone: "), saved.phone || "—"),
+        h("div", null, h("b", null, "Curso de interesse: "), saved.interesse || "—"),
+        h("div", null, h("b", null, "Cidade/Estado: "), (saved.city || "—") + (saved.state && saved.state !== "—" ? "/" + saved.state : ""))
+      ),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 } },
+        h(Btn, { onClick: function () { if (go) go("turmas"); } }, "Encaixar em turma →"),
+        h(Btn, { variant: "ghost", onClick: function () { if (go) go("kanban"); } }, "Ver no funil"),
+        h(Btn, { variant: "ghost", onClick: function () { setSaved(null); setF(blank); } }, "Cadastrar outro")
+      )
+    )
+  );
   return /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 620
@@ -5367,7 +5370,8 @@ function NewLeadForm({
 }
 function LeadProfile({
   lead,
-  onClose
+  onClose,
+  onLeadUpdate
 }) {
   const [draft, setDraft] = useState("");
   const fill = b => b.replaceAll("{{nome}}", lead.name).replaceAll("{{cidade}}", lead.city).replaceAll("{{link_ia}}", AI_PILATES_URL).replaceAll("{{valor_avista}}", fmtBRL(lead.value));
@@ -5428,7 +5432,18 @@ function LeadProfile({
     small: true,
     variant: "ghost",
     onClick: onClose
-  }, "Fechar")), /*#__PURE__*/React.createElement("div", {
+  }, "Fechar")), h("div", { style: { marginTop: 16, background: C.panel, border: "1px solid " + C.line, borderRadius: 12, padding: 14 } },
+    h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 6 } }, "Status do lead"),
+    h("select", { value: lead.stage, onChange: function (e) { if (onLeadUpdate) onLeadUpdate(lead.id, { stage: e.target.value }); }, style: { width: "100%", padding: 10, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", marginBottom: 12, fontSize: 14 } },
+      ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Perdido", "Pós-venda"].map(function (s) { return h("option", { key: s, value: s }, s); })
+    ),
+    h("div", { style: { fontSize: 14, lineHeight: 1.8 } },
+      h("div", null, h("b", null, "Curso: "), lead.interesse || "—"),
+      h("div", null, h("b", null, "Cidade/Estado: "), (lead.city || "—") + (lead.state && lead.state !== "—" ? "/" + lead.state : "")),
+      lead.turma ? h("div", null, h("b", null, "Turma: "), lead.turma.city + "/" + lead.turma.state + (lead.turma.date ? " · " + lead.turma.date : "")) : null,
+      h("div", null, h("b", null, "Valor: "), fmtBRL(lead.value || (lead.turma && lead.turma.value) || 1950) + (lead.turma && lead.turma.installment ? " à vista ou 12x de " + fmtBRL(lead.turma.installment) : ""))
+    )
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 18
     }
@@ -6085,24 +6100,34 @@ function Shell({
   const me = session.name.replace(/\s*\(.*\)/, "");
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeLeadId, setActiveLeadId] = useState(null);
+  const activeLead = leads.find(function (l) { return l.id === activeLeadId; }) || null;
+  const updateLead = function (id, patch) { setLeads(function (ls) { return ls.map(function (l) { return l.id === id ? Object.assign({}, l, patch) : l; }); }); };
   const navTo = k => {
     go(k);
     setMenuOpen(false);
   };
-  const addLead = f => setLeads([{
-    id: "L" + (leads.length + 1),
-    name: f.name,
-    phone: f.phone,
-    email: f.email,
-    city: f.city,
-    state: "—",
-    source: "Manual",
-    consultant: f.consultant,
-    stage: "Novo",
-    lgpd: false,
-    lastInteraction: "agora",
-    value: 4990
-  }, ...leads]);
+  const addLead = function (f) {
+    const lead = {
+      id: "L" + Date.now(),
+      name: f.name,
+      phone: f.phone,
+      email: f.email,
+      city: f.city,
+      state: f.state && f.state !== "" ? f.state : "—",
+      source: f.origem || "Manual",
+      consultant: f.consultant,
+      interesse: f.interesse || "Formação Presencial",
+      salesType: f.salesType || "Presencial",
+      stage: "Novo",
+      lgpd: false,
+      lastInteraction: "agora",
+      value: 4990
+    };
+    setLeads(function (ls) { return [lead, ...ls]; });
+    setActiveLeadId(lead.id);
+    return lead;
+  };
   const sub = {
     guia: "O passo a passo do sistema, do lead até a entrega ao aluno. Clique para ir a cada etapa.",
     exec: "Visão de diretoria: leads, conversão, receita, tempo de atendimento e consultores online.",
@@ -6431,6 +6456,9 @@ function Shell({
     role: role,
     me: me,
     onAudit: addAudit,
+    activeLead: activeLead,
+    onLeadUpdate: updateLead,
+    go: go,
     onEncaixe: c => addAudit(`Lead encaixado na turma ${c.city}/${c.state} (${c.date})`)
   }), view === "vagas" && /*#__PURE__*/React.createElement(Vagas, {
     classes: classes,
@@ -6466,8 +6494,9 @@ function Shell({
   }), view === "logs" && /*#__PURE__*/React.createElement(Logs, {
     auditFeed: auditFeed
   })), open && /*#__PURE__*/React.createElement(LeadProfile, {
-    lead: open,
-    onClose: () => setOpen(null)
+    lead: leads.find(function (l) { return l.id === open.id; }) || open,
+    onClose: () => setOpen(null),
+    onLeadUpdate: updateLead
   }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));

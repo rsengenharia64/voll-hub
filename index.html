@@ -53,6 +53,8 @@ const WP_API = "https://cursodepilates.com.br/wp-json/wp/v2";
 const SUPABASE_URL = "https://syrnnhzqineeqmbrskup.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Gviz1CT_dAYU9jECmwIf6g_n88-uHF6";
 const sbClient = (typeof window !== "undefined" && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const WA_API = SUPABASE_URL + "/functions/v1/wa-api";
+const WA_SECRET = "vh_wa_7Tz3Lm";
 const h = React.createElement;
 const UF_NOMES = {
   AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia",
@@ -522,11 +524,11 @@ const ROLES = {
 };
 // O que cada papel acessa (telas).
 const CAN = {
-  CEO: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
-  ADMIN: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
-  DIRETOR: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
-  GERENTE: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
-  CONSULTOR: ["guia", "meu", "ranking", "vendas", "kanban", "novo", "distribuicao", "aovivo", "turmas", "vagas", "precos", "comprovantes", "ia"],
+  CEO: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "whats", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
+  ADMIN: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "whats", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "usuarios", "integracoes", "sync", "logs"],
+  DIRETOR: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "whats", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
+  GERENTE: ["guia", "exec", "equipes", "consultores", "ranking", "comissao", "vendas", "liberacao", "relatorios", "aovivo", "whats", "distribuicao", "kanban", "novo", "turmas", "vagas", "precos", "comprovantes", "ia", "sync", "logs"],
+  CONSULTOR: ["guia", "meu", "ranking", "vendas", "kanban", "novo", "distribuicao", "aovivo", "whats", "turmas", "vagas", "precos", "comprovantes", "ia"],
   FINANCEIRO: ["guia", "comprovantes", "comissao", "vendas", "relatorios", "logs"],
   MARKETING: ["guia", "liberacao", "relatorios", "logs"]
 };
@@ -5794,7 +5796,7 @@ const ALL_NAV = [{
   items: [["exec", "Dashboard executivo"], ["meu", "Meu painel"], ["equipes", "Equipes / Gerentes"], ["consultores", "Consultores"], ["ranking", "Ranking / Premiação"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão auto"], ["relatorios", "Relatórios"]]
 }, {
   label: "Operação",
-  items: [["aovivo", "Leads ao vivo (Tallos)"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["vagas", "Vagas em tempo real"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
+  items: [["aovivo", "Leads ao vivo (Tallos)"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["vagas", "Vagas em tempo real"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
 }, {
   label: "Administração",
   items: [["usuarios", "Usuários"], ["integracoes", "Integrações"], ["sync", "Sincronização"], ["logs", "Logs e auditoria"]]
@@ -5823,6 +5825,54 @@ const TITLES = {
   sync: "Sincronização de dados",
   logs: "Logs e auditoria"
 };
+function WhatsAppPanel({ activeLead }) {
+  const [status, setStatus] = useState("…");
+  const [qr, setQr] = useState(null);
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const api = function (action, payload) {
+    return fetch(WA_API + "?action=" + action + "&secret=" + WA_SECRET, { method: payload ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: payload ? JSON.stringify(payload) : undefined }).then(function (r) { return r.json(); }).catch(function (e) { return { ok: false, error: String(e) }; });
+  };
+  const checkStatus = function () { api("status").then(function (r) { setStatus(r.ok ? r.state : (r.error || "erro")); }); };
+  const connect = function () { setBusy(true); api("qr").then(function (r) { setBusy(false); if (r.qr) setQr(String(r.qr).indexOf("data:") === 0 ? r.qr : "data:image/png;base64," + r.qr); else if (r.error) setStatus(r.error); checkStatus(); }); };
+  const loadMsgs = function () {
+    if (!sbClient || !activeLead) { setMsgs([]); return; }
+    sbClient.from("wa_messages").select("*").eq("lead_id", activeLead.id).order("created_at", { ascending: true }).limit(200).then(function (res) { if (!res.error && res.data) setMsgs(res.data); });
+  };
+  useEffect(function () { checkStatus(); }, []);
+  useEffect(function () {
+    loadMsgs();
+    if (!sbClient) return;
+    const ch = sbClient.channel("wa-rt").on("postgres_changes", { event: "*", schema: "public", table: "wa_messages" }, function () { loadMsgs(); }).subscribe();
+    return function () { try { sbClient.removeChannel(ch); } catch (e) {} };
+  }, [activeLead ? activeLead.id : null]);
+  const send = function () {
+    if (!activeLead || !text.trim()) return;
+    setBusy(true);
+    api("send", { lead_id: activeLead.id, text: text }).then(function () { setBusy(false); setText(""); loadMsgs(); });
+  };
+  const connected = /open|conectado/i.test(status);
+  return h("div", null,
+    h(Card, { style: { marginBottom: 12 } },
+      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+        h("div", null, h("strong", { style: { fontSize: 15, color: C.ink } }, "WhatsApp do consultor"), h("div", { style: { fontSize: 12, color: connected ? C.ok : C.muted } }, "Status: " + status)),
+        h("div", { style: { display: "flex", gap: 8 } }, h(Btn, { small: true, variant: "ghost", onClick: checkStatus }, "Atualizar"), h(Btn, { small: true, disabled: busy, onClick: connect }, connected ? "Reconectar" : "Conectar (QR)"))
+      ),
+      qr && !connected ? h("div", { style: { marginTop: 12, textAlign: "center" } }, h("div", { style: { fontSize: 13, color: C.muted, marginBottom: 8 } }, "No celular do consultor: WhatsApp → Aparelhos conectados → Conectar aparelho → escaneie:"), h("img", { src: qr, style: { width: 240, height: 240, border: "1px solid " + C.line, borderRadius: 8 } })) : null
+    ),
+    activeLead ? h(Card, null,
+      h("strong", { style: { fontSize: 14, color: C.ink } }, "Conversa com " + activeLead.name + (activeLead.phone ? " · " + activeLead.phone : "")),
+      h("div", { style: { marginTop: 10, maxHeight: 360, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, padding: 8, background: "#ECE5DD", borderRadius: 10 } },
+        msgs.length ? msgs.map(function (m) { return h("div", { key: m.id, style: { alignSelf: m.direction === "out" ? "flex-end" : "flex-start", maxWidth: "80%", background: m.direction === "out" ? "#DCF8C6" : "#fff", borderRadius: 8, padding: "8px 10px", fontSize: 14, whiteSpace: "pre-line" } }, m.body || "", h("div", { style: { fontSize: 10, color: C.muted, marginTop: 2, textAlign: "right" } }, new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))); }) : h("div", { style: { fontSize: 13, color: C.muted, padding: 10 } }, connected ? "Sem mensagens ainda." : "Conecte o WhatsApp para conversar.")
+      ),
+      h("div", { style: { display: "flex", gap: 8, marginTop: 10 } },
+        h("input", { value: text, onChange: function (e) { setText(e.target.value); }, placeholder: "Escreva a mensagem…", onKeyDown: function (e) { if (e.key === "Enter") send(); }, style: { flex: 1, padding: 12, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 14 } }),
+        h(Btn, { disabled: busy || !connected, onClick: send }, "Enviar")
+      )
+    ) : h(Card, null, h("div", { style: { fontSize: 13, color: C.muted } }, "Selecione um lead (em Cadastrar lead ou no Funil) para abrir a conversa dele aqui."))
+  );
+}
 function LeadsAoVivo({ me, role }) {
   const [leads, setLeads] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -5950,7 +6000,7 @@ function LeadsAoVivo({ me, role }) {
 }
 function App() {
   const [users, setUsers] = useState(seedUsers);
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(function () { try { return JSON.parse(localStorage.getItem("voll_session") || "null"); } catch (e) { return null; } });
   const [leads, setLeads] = useState(seedLeads);
   const [proofs, setProofs] = useState(seedProofs);
   const [pricing, setPricing] = useState(seedPricing);
@@ -6000,6 +6050,7 @@ function App() {
   if (!session) return /*#__PURE__*/React.createElement(Login, {
     users: users,
     onLogin: u => {
+      try { localStorage.setItem("voll_session", JSON.stringify(u)); } catch (e) {}
       setSession(u);
     }
   });
@@ -6073,10 +6124,12 @@ function Shell({
   firstView,
   allowed
 }) {
-  const [history, setHistory] = useState([firstView]);
+  const [history, setHistory] = useState(function () { try { var v = localStorage.getItem("voll_view"); return v ? [v] : [firstView]; } catch (e) { return [firstView]; } });
   const [pos, setPos] = useState(0);
   const view = history[pos];
   const order = nav.flatMap(g => g.items.map(i => i[0]));
+  useEffect(function () { try { localStorage.setItem("voll_view", view); } catch (e) {} }, [view]);
+  useEffect(function () { if (order.length && order.indexOf(view) < 0) { setHistory([firstView]); setPos(0); } }, []);
   const go = next => {
     if (next === view) return;
     const base = history.slice(0, pos + 1);
@@ -6316,7 +6369,7 @@ function Shell({
   }, ROLES[role]), /*#__PURE__*/React.createElement(Btn, {
     small: true,
     variant: "ghost",
-    onClick: () => setSession(null)
+    onClick: () => { try { localStorage.removeItem("voll_session"); localStorage.removeItem("voll_view"); } catch (e) {} setSession(null); }
   }, "Sair"))), /*#__PURE__*/React.createElement("main", {
     className: "vh-content",
     style: {
@@ -6443,6 +6496,8 @@ function Shell({
     leads: leads,
     consultants: seedConsultants,
     sales: sales
+  }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
+    activeLead: activeLead
   }), view === "aovivo" && /*#__PURE__*/React.createElement(LeadsAoVivo, {
     me: me,
     role: role

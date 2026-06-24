@@ -56,6 +56,23 @@ const sbClient = (typeof window !== "undefined" && window.supabase) ? window.sup
 const WA_API = SUPABASE_URL + "/functions/v1/wa-api";
 const WA_SECRET = "vh_wa_7Tz3Lm";
 const h = React.createElement;
+function mapDbLead(r) {
+  return {
+    id: r.id, name: r.name, phone: r.phone, email: r.email,
+    city: r.city, state: r.state || "—",
+    stage: r.stage || r.status || "Novo",
+    interesse: r.interesse || r.interest || "Formação Presencial",
+    salesType: r.sales_type || "Presencial",
+    value: Number(r.value) || 4990, consultant: r.consultant || "—",
+    source: r.source || r.channel || "Manual",
+    turma: r.turma || null, history: r.history || [],
+    lgpd: !!r.lgpd, lastInteraction: "—", created_at: r.created_at
+  };
+}
+function loadDbLeads() {
+  if (!sbClient) return Promise.resolve(null);
+  return sbClient.from("leads").select("*").order("created_at", { ascending: false }).limit(1000).then(function (res) { return (!res.error && res.data) ? res.data.map(mapDbLead) : null; }).catch(function () { return null; });
+}
 const UF_NOMES = {
   AC: "Acre", AL: "Alagoas", AP: "Amapá", AM: "Amazonas", BA: "Bahia",
   CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
@@ -6052,6 +6069,12 @@ function App() {
   }, []);
   useEffect(function () { try { localStorage.setItem("voll_leads", JSON.stringify(leads)); } catch (e) {} }, [leads]);
   useEffect(function () { try { localStorage.setItem("voll_sales", JSON.stringify(sales)); } catch (e) {} }, [sales]);
+  useEffect(function () {
+    loadDbLeads().then(function (rows) { if (rows && rows.length) setLeads(rows); });
+    if (!sbClient) return;
+    var ch = sbClient.channel("leads-crm").on("postgres_changes", { event: "*", schema: "public", table: "leads" }, function () { loadDbLeads().then(function (rows) { if (rows) setLeads(rows); }); }).subscribe();
+    return function () { try { sbClient.removeChannel(ch); } catch (e) {} };
+  }, []);
   if (!session) return /*#__PURE__*/React.createElement(Login, {
     users: users,
     onLogin: u => {
@@ -6161,42 +6184,45 @@ function Shell({
   const [activeLeadId, setActiveLeadId] = useState(null);
   const activeLead = leads.find(function (l) { return l.id === activeLeadId; }) || null;
   const updateLead = function (id, patch) {
+    var prev = leads.find(function (l) { return l.id === id; });
+    var newHistory = null;
+    if (prev && patch.stage && patch.stage !== prev.stage) {
+      newHistory = (prev.history || []).concat([{ at: new Date().toISOString(), from: prev.stage, to: patch.stage, by: me }]);
+    }
     setLeads(function (ls) {
       return ls.map(function (l) {
         if (l.id !== id) return l;
         var nl = Object.assign({}, l, patch);
-        if (patch.stage && patch.stage !== l.stage) {
-          nl.history = (l.history || []).concat([{ at: new Date().toISOString(), from: l.stage, to: patch.stage, by: me }]);
-          nl.lastInteraction = "agora";
-        }
+        if (newHistory) { nl.history = newHistory; nl.lastInteraction = "agora"; }
         return nl;
       });
     });
+    if (sbClient) {
+      var p = {};
+      if (patch.stage) p.stage = patch.stage;
+      if (patch.value != null) p.value = patch.value;
+      if (patch.turma) p.turma = patch.turma;
+      if (newHistory) p.history = newHistory;
+      sbClient.from("leads").update(p).eq("id", id).then(function () {});
+    }
   };
   const navTo = k => {
     go(k);
     setMenuOpen(false);
   };
   const addLead = function (f) {
-    const lead = {
-      id: "L" + Date.now(),
-      name: f.name,
-      phone: f.phone,
-      email: f.email,
-      city: f.city,
-      state: f.state && f.state !== "" ? f.state : "—",
-      source: f.origem || "Manual",
-      consultant: f.consultant,
-      interesse: f.interesse || "Formação Presencial",
-      salesType: f.salesType || "Presencial",
-      stage: "Novo",
-      history: [{ at: new Date().toISOString(), to: "Novo", by: f.consultant }],
-      lgpd: false,
-      lastInteraction: "agora",
-      value: 4990
+    var id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "L" + Date.now();
+    var st = f.state && f.state !== "" ? f.state : "—";
+    var hist = [{ at: new Date().toISOString(), to: "Novo", by: f.consultant }];
+    var lead = {
+      id: id, name: f.name, phone: f.phone, email: f.email, city: f.city, state: st,
+      source: f.origem || "Manual", consultant: f.consultant,
+      interesse: f.interesse || "Formação Presencial", salesType: f.salesType || "Presencial",
+      stage: "Novo", history: hist, lgpd: false, lastInteraction: "agora", value: 4990
     };
     setLeads(function (ls) { return [lead, ...ls]; });
-    setActiveLeadId(lead.id);
+    setActiveLeadId(id);
+    if (sbClient) sbClient.from("leads").insert({ id: id, name: f.name, phone: f.phone, email: f.email, city: f.city, state: st, stage: "Novo", interesse: lead.interesse, sales_type: lead.salesType, value: 4990, consultant: f.consultant, source: lead.source, lgpd: false, history: hist }).then(function () {});
     return lead;
   };
   const sub = {

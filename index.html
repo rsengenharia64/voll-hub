@@ -5066,56 +5066,35 @@ function Kanban({
   leads,
   onOpen
 }) {
+  const [q, setQ] = useState("");
   const norm = function (s) { return ({ "Pagamento pendente": "Proposta enviada", "Pago": "Venda efetivada", "Vaga garantida": "Encaixado em turma", "Qualificado": "Em atendimento" })[s] || s; };
   const cols = ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Pós-venda", "Perdido"];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols.length},minmax(180px,1fr))`,
-      gap: 12,
-      overflowX: "auto"
-    }
-  }, cols.map(col => /*#__PURE__*/React.createElement("div", {
-    key: col,
-    style: {
-      background: "#EEF4F2",
-      borderRadius: 12,
-      padding: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: C.muted,
-      marginBottom: 10,
-      textTransform: "uppercase",
-      letterSpacing: 0.4
-    }
-  }, col, " · ", leads.filter(l => norm(l.stage) === col).length), leads.filter(l => norm(l.stage) === col).map(l => /*#__PURE__*/React.createElement("div", {
-    key: l.id,
-    onClick: () => onOpen(l),
-    style: {
-      background: C.panel,
-      border: `1px solid ${C.line}`,
-      borderRadius: 10,
-      padding: 11,
-      marginBottom: 8,
-      cursor: "pointer"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 600,
-      fontSize: 13
-    }
-  }, l.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: C.muted,
-      margin: "2px 0 6px"
-    }
-  }, l.city, "/", l.state, " · ", l.consultant), /*#__PURE__*/React.createElement(Badge, {
-    tone: "brand"
-  }, l.lastInteraction))))));
+  const CAP = 40;
+  const ql = q.trim().toLowerCase();
+  const base = ql ? leads.filter(function (l) { return [l.name, l.phone, l.city, l.consultant].some(function (v) { return String(v || "").toLowerCase().indexOf(ql) >= 0; }); }) : leads;
+  return h("div", null,
+    h("div", { style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
+      h("input", { value: q, onChange: function (e) { setQ(e.target.value); }, placeholder: "Buscar por nome, telefone, cidade…", style: { flex: 1, minWidth: 220, padding: 10, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 14 } }),
+      h("span", { style: { fontSize: 12, color: C.muted } }, base.length + " lead(s)")
+    ),
+    h("div", { style: { display: "grid", gridTemplateColumns: "repeat(" + cols.length + ",minmax(180px,1fr))", gap: 12, overflowX: "auto" } },
+      cols.map(function (col) {
+        var colLeads = base.filter(function (l) { return norm(l.stage) === col; });
+        var shown = colLeads.slice(0, CAP);
+        return h("div", { key: col, style: { background: "#EEF4F2", borderRadius: 12, padding: 10 } },
+          h("div", { style: { fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 } }, col + " · " + colLeads.length),
+          shown.map(function (l) {
+            return h("div", { key: l.id, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "pointer" } },
+              h("div", { style: { fontWeight: 600, fontSize: 13 } }, l.name),
+              h("div", { style: { fontSize: 11, color: C.muted, margin: "2px 0 6px" } }, (l.city || "") + (l.state ? "/" + l.state : "") + " · " + (l.consultant || "")),
+              h(Badge, { tone: "brand" }, l.lastInteraction || "—")
+            );
+          }),
+          colLeads.length > CAP ? h("div", { style: { fontSize: 12, color: C.brand, fontWeight: 600, textAlign: "center", padding: 6 } }, "+ " + (colLeads.length - CAP) + " mais (refine a busca)") : null
+        );
+      })
+    )
+  );
 }
 function NewLeadForm({
   leads,

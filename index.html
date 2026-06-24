@@ -55,6 +55,8 @@ const SUPABASE_KEY = "sb_publishable_Gviz1CT_dAYU9jECmwIf6g_n88-uHF6";
 const sbClient = (typeof window !== "undefined" && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const WA_API = SUPABASE_URL + "/functions/v1/wa-api";
 const WA_SECRET = "vh_wa_7Tz3Lm";
+const USERS_API = SUPABASE_URL + "/functions/v1/users-api";
+const USERS_SECRET = "vh_users_4Kp7Zq";
 const h = React.createElement;
 function mapDbLead(r) {
   return {
@@ -534,9 +536,13 @@ function useIsMobile() {
 const ROLES = {
   CEO: "CEO",
   ADMIN: "Administrador",
-  DIRETOR: "Diretor comercial",
-  GERENTE: "Gerente comercial",
+  DIRETOR: "Diretor",
+  GERENTE: "Gerente",
+  SUPERVISOR: "Supervisor",
   CONSULTOR: "Consultor",
+  CONSULTOR_ONLINE: "Consultor Online",
+  CONSULTOR_PRESENCIAL: "Consultor Presencial",
+  ASSISTENTE: "Assistente Administrativo",
   FINANCEIRO: "Financeiro",
   MARKETING: "Marketing"
 };
@@ -550,6 +556,10 @@ const CAN = {
   FINANCEIRO: ["guia", "comprovantes", "comissao", "vendas", "relatorios", "logs"],
   MARKETING: ["guia", "liberacao", "relatorios", "logs"]
 };
+CAN.SUPERVISOR = CAN.GERENTE;
+CAN.CONSULTOR_ONLINE = CAN.CONSULTOR;
+CAN.CONSULTOR_PRESENCIAL = CAN.CONSULTOR;
+CAN.ASSISTENTE = CAN.GERENTE;
 
 // ---------------- Seed ----------------
 const seedUsers = [{
@@ -1090,11 +1100,21 @@ function Login({
   const [email, setEmail] = useState("admin@voll.com");
   const [pass, setPass] = useState("123");
   const [err, setErr] = useState("");
-  const submit = () => {
-    const u = users.find(x => x.email === email.trim().toLowerCase() && x.pass === pass);
-    if (!u) return setErr("Credenciais inválidas.");
-    if (!u.active) return setErr("Usuário desativado. Procure o administrador.");
-    onLogin(u);
+  const submit = function () {
+    setErr("Entrando…");
+    var fallback = function () {
+      var u = users.find(function (x) { return x.email === email.trim().toLowerCase() && x.pass === pass; });
+      if (u && u.active) { onLogin(u); return true; }
+      return false;
+    };
+    fetch(USERS_API + "?action=login&secret=" + USERS_SECRET, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email, senha: pass }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res && res.ok && res.user) { onLogin({ id: res.user.id, name: res.user.nome, email: res.user.email, role: res.user.role, area: res.user.area, active: true }); return; }
+        if (fallback()) return;
+        setErr((res && res.error) || "Credenciais inválidas.");
+      })
+      .catch(function () { if (!fallback()) setErr("Sem conexão. Tente novamente."); });
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2213,181 +2233,61 @@ function Relatorios({
 }
 
 // ---------------- Usuários (admin) ----------------
-function Usuarios({
-  users,
-  setUsers,
-  onAudit
-}) {
-  const [f, setF] = useState({
-    name: "",
-    email: "",
-    role: "CONSULTOR",
-    pass: ""
-  });
-  const add = () => {
-    if (!f.name || !f.email) return;
-    const u = {
-      id: "U" + (users.length + 1),
-      name: f.name,
-      email: f.email.trim().toLowerCase(),
-      pass: f.pass || "123",
-      role: f.role,
-      active: true
-    };
-    setUsers([...users, u]);
-    onAudit?.(`Admin criou usuário ${u.name} (${ROLES[u.role]})`);
-    setF({
-      name: "",
-      email: "",
-      role: "CONSULTOR",
-      pass: ""
+function Usuarios({ onAudit }) {
+  const [users, setUsers] = useState([]);
+  const [f, setF] = useState({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" });
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const CARGOS = [["ADMIN", "Administrador"], ["CEO", "CEO"], ["DIRETOR", "Diretor"], ["GERENTE", "Gerente"], ["SUPERVISOR", "Supervisor"], ["CONSULTOR_ONLINE", "Consultor Online"], ["CONSULTOR_PRESENCIAL", "Consultor Presencial"], ["ASSISTENTE", "Assistente Administrativo"], ["FINANCEIRO", "Financeiro"], ["MARKETING", "Marketing"]];
+  const AREAS = ["Comercial", "Marketing", "Gestão/Administração", "Financeiro"];
+  const cargoNome = function (r) { var x = CARGOS.find(function (c) { return c[0] === r; }); return x ? x[1] : r; };
+  const api = function (action, payload) { return fetch(USERS_API + "?action=" + action + "&secret=" + USERS_SECRET, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) }).then(function (r) { return r.json(); }).catch(function (e) { return { ok: false, error: String(e) }; }); };
+  const load = function () { fetch(USERS_API + "?action=list&secret=" + USERS_SECRET).then(function (r) { return r.json(); }).then(function (res) { if (res.ok) setUsers(res.users || []); }).catch(function () {}); };
+  useEffect(function () { load(); }, []);
+  const add = function () {
+    if (!f.nome || !f.email) { setMsg("Preencha nome e e-mail."); return; }
+    setBusy(true);
+    api("create", f).then(function (res) {
+      setBusy(false);
+      if (res.ok) { setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123")); setF({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" }); load(); if (onAudit) onAudit("Admin criou usuário " + res.user.nome + " (" + cargoNome(res.user.role) + ")"); }
+      else setMsg("⚠ " + (res.error || "erro"));
     });
   };
-  const toggle = id => {
-    setUsers(users.map(u => u.id === id ? {
-      ...u,
-      active: !u.active
-    } : u));
-    const u = users.find(x => x.id === id);
-    onAudit?.(`Admin ${u.active ? "desativou" : "ativou"} ${u.name}`);
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1.3fr",
-      gap: 14
-    }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("strong", {
-    style: {
-      fontSize: 14
-    }
-  }, "Novo usuário"), /*#__PURE__*/React.createElement("p", {
-    style: {
-      fontSize: 12,
-      color: C.muted,
-      margin: "4px 0 14px"
-    }
-  }, "Crie consultores, gerentes, financeiro ou outro admin."), /*#__PURE__*/React.createElement(Input, {
-    label: "Nome",
-    value: f.name,
-    onChange: e => setF({
-      ...f,
-      name: e.target.value
-    })
-  }), /*#__PURE__*/React.createElement(Input, {
-    label: "E-mail",
-    value: f.email,
-    onChange: e => setF({
-      ...f,
-      email: e.target.value
-    })
-  }), /*#__PURE__*/React.createElement(Input, {
-    label: "Senha inicial",
-    type: "password",
-    placeholder: "padrão: 123",
-    value: f.pass,
-    onChange: e => setF({
-      ...f,
-      pass: e.target.value
-    })
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("label", {
-    style: {
-      fontSize: 12,
-      color: C.muted,
-      display: "block",
-      marginBottom: 4
-    }
-  }, "Função"), /*#__PURE__*/React.createElement("select", {
-    value: f.role,
-    onChange: e => setF({
-      ...f,
-      role: e.target.value
-    }),
-    style: {
-      width: "100%",
-      padding: 10,
-      border: `1px solid ${C.line}`,
-      borderRadius: 9,
-      fontSize: 14,
-      fontFamily: "inherit",
-      background: C.panel
-    }
-  }, Object.entries(ROLES).map(([k, v]) => /*#__PURE__*/React.createElement("option", {
-    key: k,
-    value: k
-  }, v)))), /*#__PURE__*/React.createElement(Btn, {
-    onClick: add
-  }, "Cadastrar usuário")), /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 0,
-      overflow: "hidden"
-    }
-  }, /*#__PURE__*/React.createElement("table", {
-    style: {
-      width: "100%",
-      borderCollapse: "collapse",
-      fontSize: 14
-    }
-  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
-    style: {
-      background: "#EEF4F2",
-      textAlign: "left",
-      color: C.muted,
-      fontSize: 12
-    }
-  }, ["Nome", "Função", "Acesso", "Ação"].map(h => /*#__PURE__*/React.createElement("th", {
-    key: h,
-    style: {
-      padding: "11px 14px"
-    }
-  }, h)))), /*#__PURE__*/React.createElement("tbody", null, users.map(u => /*#__PURE__*/React.createElement("tr", {
-    key: u.id,
-    style: {
-      borderTop: `1px solid ${C.line}`
-    }
-  }, /*#__PURE__*/React.createElement("td", {
-    style: {
-      padding: "11px 14px"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 600
-    }
-  }, u.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: C.muted
-    }
-  }, u.email)), /*#__PURE__*/React.createElement("td", {
-    style: {
-      padding: "11px 14px"
-    }
-  }, /*#__PURE__*/React.createElement(Badge, {
-    tone: "brand"
-  }, ROLES[u.role])), /*#__PURE__*/React.createElement("td", {
-    style: {
-      padding: "11px 14px"
-    }
-  }, u.active ? /*#__PURE__*/React.createElement(Badge, {
-    tone: "ok"
-  }, "Ativo") : /*#__PURE__*/React.createElement(Badge, {
-    tone: "danger"
-  }, "Desativado")), /*#__PURE__*/React.createElement("td", {
-    style: {
-      padding: "11px 14px"
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    small: true,
-    variant: "ghost",
-    onClick: () => toggle(u.id)
-  }, u.active ? "Desativar" : "Ativar"))))))));
+  const upd = function (u, patch, nota) { api("update", Object.assign({ id: u.id }, patch)).then(function () { load(); if (nota && onAudit) onAudit(nota); }); };
+  const selStyle = { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 };
+  return h("div", { style: { display: "grid", gridTemplateColumns: "minmax(260px,1fr) 1.4fr", gap: 14 } },
+    h(Card, null,
+      h("strong", { style: { fontSize: 15 } }, "Cadastrar usuário"),
+      h("p", { style: { fontSize: 12, color: C.muted, margin: "4px 0 14px" } }, "Crie acessos da equipe: cargo e área. A senha inicial pode ser trocada depois."),
+      h(Input, { label: "Nome", value: f.nome, onChange: function (e) { setF(Object.assign({}, f, { nome: e.target.value })); } }),
+      h(Input, { label: "E-mail", value: f.email, onChange: function (e) { setF(Object.assign({}, f, { email: e.target.value })); } }),
+      h(Input, { label: "Senha inicial", type: "password", placeholder: "padrão: 123", value: f.senha, onChange: function (e) { setF(Object.assign({}, f, { senha: e.target.value })); } }),
+      h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 } },
+        h("div", null, h("label", { style: { fontSize: 12, color: C.muted, display: "block", marginBottom: 6 } }, "Cargo"), h("select", { value: f.role, onChange: function (e) { setF(Object.assign({}, f, { role: e.target.value })); }, style: Object.assign({ width: "100%" }, selStyle) }, CARGOS.map(function (c) { return h("option", { key: c[0], value: c[0] }, c[1]); }))),
+        h("div", null, h("label", { style: { fontSize: 12, color: C.muted, display: "block", marginBottom: 6 } }, "Área"), h("select", { value: f.area, onChange: function (e) { setF(Object.assign({}, f, { area: e.target.value })); }, style: Object.assign({ width: "100%" }, selStyle) }, AREAS.map(function (a) { return h("option", { key: a, value: a }, a); })))
+      ),
+      h(Btn, { disabled: busy, onClick: add }, busy ? "Salvando…" : "Cadastrar usuário"),
+      msg ? h("div", { style: { marginTop: 10, fontSize: 13, fontWeight: 600, color: msg.indexOf("⚠") >= 0 ? C.danger : C.brand } }, msg) : null
+    ),
+    h(Card, null,
+      h("strong", { style: { fontSize: 15 } }, "Equipe (" + users.length + ")"),
+      h("div", { style: { marginTop: 12, display: "grid", gap: 8 } },
+        users.length === 0 ? h("div", { style: { fontSize: 13, color: C.muted } }, "Carregando usuários…") : users.map(function (u) {
+          return h("div", { key: u.id, style: { border: "1px solid " + C.line, borderRadius: 10, padding: 10, opacity: u.ativo ? 1 : 0.55 } },
+            h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+              h("div", null, h("strong", { style: { fontSize: 14 } }, u.nome), h("div", { style: { fontSize: 12, color: C.muted } }, u.email)),
+              h(Btn, { small: true, variant: u.ativo ? "ghost" : "primary", onClick: function () { upd(u, { ativo: !u.ativo }, "Admin " + (u.ativo ? "desativou" : "ativou") + " " + u.nome); } }, u.ativo ? "Desativar" : "Ativar")
+            ),
+            h("div", { style: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" } },
+              h("select", { value: u.role, onChange: function (e) { upd(u, { role: e.target.value }, "Admin alterou cargo de " + u.nome); }, style: selStyle }, CARGOS.map(function (c) { return h("option", { key: c[0], value: c[0] }, c[1]); })),
+              h("select", { value: u.area, onChange: function (e) { upd(u, { area: e.target.value }, null); }, style: selStyle }, AREAS.map(function (a) { return h("option", { key: a, value: a }, a); }))
+            )
+          );
+        })
+      )
+    )
+  );
 }
-
-// ---------------- Comprovantes ----------------
 function Comprovantes({
   proofs,
   setProofs,

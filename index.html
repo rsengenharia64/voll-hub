@@ -68,6 +68,8 @@ function mapDbLead(r) {
     value: Number(r.value) || 4990, consultant: r.consultant || "—",
     source: r.source || r.channel || "Manual",
     turma: r.turma || null, history: r.history || [],
+    cpf: r.cpf || "", cep: r.cep || "", endereco: r.endereco || "", obs: r.obs || "", nascimento: r.nascimento || "",
+    notas: r.notas || [], retorno_em: r.retorno_em || "", retorno_nota: r.retorno_nota || "", pagamento: r.pagamento || null,
     lgpd: !!r.lgpd, lastInteraction: "—", created_at: r.created_at
   };
 }
@@ -2904,6 +2906,17 @@ function Turmas({
     setCopied(false);
     onEncaixe?.(c);
   };
+  const copyAllTurmas = function () {
+    var arr = filtered.slice(0, 80);
+    var linhas = arr.map(function (c) {
+      var datas = String(c.date || "").split(" \u00b7 ").filter(Boolean);
+      return "\u2022 " + c.city + "/" + c.state + (c.turno ? " (Turma " + c.turno + ")" : "") + " \u2014 " + (datas.join(" e ") || c.date || "a definir") + (c.horario ? " \u00b7 " + c.horario : "");
+    }).join("\n");
+    var cab = "*Turmas dispon\u00edveis" + (city ? " em " + city : state ? " em " + state : " no Brasil") + ":*\n\n";
+    if (navigator.clipboard) navigator.clipboard.writeText(cab + linhas);
+    setCopied(true);
+    if (onAudit) onAudit("Copiou " + arr.length + " turma(s)" + (city ? " de " + city : state ? " de " + state : ""));
+  };
   const copy = () => {
     navigator.clipboard?.writeText(panel.msg || "");
     setCopied(true);
@@ -3211,7 +3224,7 @@ function Turmas({
       fontFamily: "inherit",
       marginLeft: 6
     }
-  })), (selected ? h("div", { style: { marginBottom: 10 } }, h(Btn, { small: true, variant: "ghost", onClick: function () { setSelected(null); } }, "← Ver outras turmas")) : null), /*#__PURE__*/React.createElement("div", {
+  }), h(Btn, { small: true, variant: "ghost", onClick: copyAllTurmas }, "Copiar todas")), (selected ? h("div", { style: { marginBottom: 10 } }, h(Btn, { small: true, variant: "ghost", onClick: function () { setSelected(null); } }, "← Ver outras turmas")) : null), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gap: 10
@@ -5277,9 +5290,23 @@ function NewLeadForm({
 function LeadProfile({
   lead,
   onClose,
-  onLeadUpdate
+  onLeadUpdate,
+  me
 }) {
   const [draft, setDraft] = useState("");
+  const [form, setForm] = useState({ email: lead.email || "", phone: lead.phone || "", cpf: lead.cpf || "", cep: lead.cep || "", endereco: lead.endereco || "", nascimento: lead.nascimento || "", obs: lead.obs || "", value: lead.value || "" });
+  const [okMsg, setOkMsg] = useState("");
+  const [nota, setNota] = useState("");
+  const [ret, setRet] = useState({ em: lead.retorno_em || "", nota: lead.retorno_nota || "" });
+  const [pag, setPag] = useState(lead.pagamento || { metodo: "Pix", link: "", entrada: "", parcelas: "", valor_parcela: "", vencimento: "" });
+  const flash = function (m) { setOkMsg(m); setTimeout(function () { setOkMsg(""); }, 2500); };
+  const salvarDados = function () { if (onLeadUpdate) onLeadUpdate(lead.id, { email: form.email, phone: form.phone, cpf: form.cpf, cep: form.cep, endereco: form.endereco, nascimento: form.nascimento || null, obs: form.obs, value: Number(form.value) || lead.value }); flash("✓ Dados salvos"); };
+  const addNota = function () { if (!nota.trim()) return; var ns = (lead.notas || []).concat([{ at: new Date().toISOString(), por: me || "—", texto: nota.trim() }]); if (onLeadUpdate) onLeadUpdate(lead.id, { notas: ns }); setNota(""); flash("✓ Anotação adicionada"); };
+  const salvarRet = function () { if (onLeadUpdate) onLeadUpdate(lead.id, { retorno_em: ret.em || null, retorno_nota: ret.nota }); flash("✓ Retorno agendado"); };
+  const salvarPag = function () { if (onLeadUpdate) onLeadUpdate(lead.id, { pagamento: pag }); flash("✓ Pagamento salvo"); };
+  const fld = function (label, key, type) { return h("div", null, h("label", { style: { fontSize: 11, color: C.muted, display: "block" } }, label), h("input", { type: type || "text", value: form[key], onChange: function (e) { setForm(Object.assign({}, form, { [key]: e.target.value })); }, style: { width: "100%", padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } })); };
+  const sectStyle = { marginTop: 12, background: C.panel, border: "1px solid " + C.line, borderRadius: 12, padding: 14 };
+  const hdr = function (t) { return h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 8, fontWeight: 700 } }, t); };
   const fill = b => b.replaceAll("{{nome}}", lead.name).replaceAll("{{cidade}}", lead.city).replaceAll("{{link_ia}}", AI_PILATES_URL).replaceAll("{{valor_avista}}", fmtBRL(lead.value));
   const templates = [{
     t: "Boas-vindas",
@@ -5349,7 +5376,7 @@ function LeadProfile({
       lead.turma ? h("div", null, h("b", null, "Turma: "), lead.turma.city + "/" + lead.turma.state + (lead.turma.date ? " · " + lead.turma.date : "")) : null,
       h("div", null, h("b", null, "Valor: "), fmtBRL(lead.value || (lead.turma && lead.turma.value) || 1950) + (lead.turma && lead.turma.installment ? " à vista ou 12x de " + fmtBRL(lead.turma.installment) : ""))
     )
-  ), (lead.history && lead.history.length ? h("div", { style: { marginTop: 12, background: C.panel, border: "1px solid " + C.line, borderRadius: 12, padding: 14 } }, h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 8, fontWeight: 700 } }, "Histórico de movimentações"), lead.history.slice().reverse().map(function (ev, i) { return h("div", { key: i, style: { fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + C.line } }, h("b", null, "→ " + ev.to), (ev.from ? " (de " + ev.from + ")" : ""), h("span", { style: { color: C.muted } }, " · " + new Date(ev.at).toLocaleString("pt-BR") + (ev.by ? " · " + ev.by : ""))); })) : null), /*#__PURE__*/React.createElement("div", {
+  ), h("div", { style: sectStyle }, hdr("Dados do cliente"), h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, fld("Telefone", "phone"), fld("E-mail", "email"), fld("CPF", "cpf"), fld("CEP", "cep"), fld("Nascimento", "nascimento", "date"), fld("Valor (R$)", "value", "number")), h("div", { style: { marginTop: 8 } }, fld("Endereço", "endereco")), h("div", { style: { marginTop: 8 } }, h("label", { style: { fontSize: 11, color: C.muted, display: "block" } }, "Observação"), h("textarea", { value: form.obs, onChange: function (e) { setForm(Object.assign({}, form, { obs: e.target.value })); }, rows: 2, style: { width: "100%", padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } })), h("div", { style: { marginTop: 10 } }, h(Btn, { small: true, onClick: salvarDados }, "Salvar dados"))), h("div", { style: sectStyle }, hdr("Próximo retorno (tarefa)"), lead.retorno_em ? h("div", { style: { fontSize: 13, color: C.accent, marginBottom: 8, fontWeight: 600 } }, "⏰ Retornar em " + new Date(lead.retorno_em).toLocaleDateString("pt-BR") + (lead.retorno_nota ? " — " + lead.retorno_nota : "")) : null, h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, h("input", { type: "date", value: ret.em, onChange: function (e) { setRet(Object.assign({}, ret, { em: e.target.value })); }, style: { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h("input", { value: ret.nota, onChange: function (e) { setRet(Object.assign({}, ret, { nota: e.target.value })); }, placeholder: "motivo do retorno…", style: { flex: 1, minWidth: 140, padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h(Btn, { small: true, onClick: salvarRet }, "Salvar"))), h("div", { style: sectStyle }, hdr("Anotações / conversa"), h("div", { style: { display: "flex", gap: 8 } }, h("input", { value: nota, onChange: function (e) { setNota(e.target.value); }, onKeyDown: function (e) { if (e.key === "Enter") addNota(); }, placeholder: "Anotar contato/conversa…", style: { flex: 1, padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h(Btn, { small: true, onClick: addNota }, "Adicionar")), (lead.notas && lead.notas.length) ? h("div", { style: { marginTop: 10, display: "grid", gap: 6 } }, lead.notas.slice().reverse().map(function (n, i) { return h("div", { key: i, style: { fontSize: 13, background: C.brandSoft, borderRadius: 8, padding: "6px 10px" } }, n.texto, h("div", { style: { fontSize: 10, color: C.muted, marginTop: 2 } }, new Date(n.at).toLocaleString("pt-BR") + (n.por ? " · " + n.por : ""))); })) : null), h("div", { style: sectStyle }, hdr("Pagamento"), h("div", { style: { display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" } }, ["Pix", "Cartão", "Boleto"].map(function (m) { return h(Btn, { key: m, small: true, variant: pag.metodo === m ? "primary" : "ghost", onClick: function () { setPag(Object.assign({}, pag, { metodo: m })); } }, m); })), h("input", { value: pag.link, onChange: function (e) { setPag(Object.assign({}, pag, { link: e.target.value })); }, placeholder: "Cole o link de pagamento (PagBank)…", style: { width: "100%", padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), pag.metodo === "Boleto" ? h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 } }, h("input", { value: pag.entrada, onChange: function (e) { setPag(Object.assign({}, pag, { entrada: e.target.value })); }, placeholder: "Entrada (R$)", style: { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h("input", { value: pag.parcelas, onChange: function (e) { setPag(Object.assign({}, pag, { parcelas: e.target.value })); }, placeholder: "Nº parcelas", style: { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h("input", { value: pag.valor_parcela, onChange: function (e) { setPag(Object.assign({}, pag, { valor_parcela: e.target.value })); }, placeholder: "Valor parcela (R$)", style: { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } }), h("input", { value: pag.vencimento, onChange: function (e) { setPag(Object.assign({}, pag, { vencimento: e.target.value })); }, placeholder: "Dia vencimento", style: { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } })) : null, h("div", { style: { marginTop: 10, display: "flex", gap: 8, alignItems: "center" } }, h(Btn, { small: true, onClick: salvarPag }, "Salvar pagamento"), pag.link ? h("a", { href: pag.link, target: "_blank", rel: "noreferrer", style: { fontSize: 13, color: C.brand } }, "Abrir link ↗") : null)), okMsg ? h("div", { style: { marginTop: 10, fontSize: 13, fontWeight: 700, color: C.brand } }, okMsg) : null, (lead.history && lead.history.length ? h("div", { style: { marginTop: 12, background: C.panel, border: "1px solid " + C.line, borderRadius: 12, padding: 14 } }, h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 8, fontWeight: 700 } }, "Histórico de movimentações"), lead.history.slice().reverse().map(function (ev, i) { return h("div", { key: i, style: { fontSize: 13, padding: "5px 0", borderBottom: "1px solid " + C.line } }, h("b", null, "→ " + ev.to), (ev.from ? " (de " + ev.from + ")" : ""), h("span", { style: { color: C.muted } }, " · " + new Date(ev.at).toLocaleString("pt-BR") + (ev.by ? " · " + ev.by : ""))); })) : null), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 18
     }
@@ -6078,11 +6105,9 @@ function Shell({
     });
     if (sbClient) {
       var p = {};
-      if (patch.stage) p.stage = patch.stage;
-      if (patch.value != null) p.value = patch.value;
-      if (patch.turma) p.turma = patch.turma;
+      ["stage", "value", "turma", "name", "phone", "email", "city", "state", "interesse", "cpf", "cep", "endereco", "obs", "nascimento", "notas", "retorno_em", "retorno_nota", "pagamento"].forEach(function (k) { if (patch[k] !== undefined) p[k] = patch[k]; });
       if (newHistory) p.history = newHistory;
-      sbClient.from("leads").update(p).eq("id", id).then(function () {});
+      if (Object.keys(p).length) sbClient.from("leads").update(p).eq("id", id).then(function () {});
     }
   };
   const navTo = k => {
@@ -6474,7 +6499,8 @@ function Shell({
   })), open && /*#__PURE__*/React.createElement(LeadProfile, {
     lead: leads.find(function (l) { return l.id === open.id; }) || open,
     onClose: () => setOpen(null),
-    onLeadUpdate: updateLead
+    onLeadUpdate: updateLead,
+    me: me
   }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));

@@ -197,7 +197,7 @@ const COURSES = [
 ];
 const TABGROUPS = [
   { main: "exec", views: [["exec", "Dashboard"], ["meu", "Meu painel"], ["equipes", "Equipes"], ["consultores", "Consultores"], ["ranking", "Ranking"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão"], ["relatorios", "Relatórios"], ["dre", "DRE"]] },
-  { main: "kanban", views: [["kanban", "Funil"], ["aovivo", "Leads ao vivo"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"]] },
+  { main: "kanban", views: [["kanban", "Funil"], ["retornos", "Retornos de pagamento"], ["aovivo", "Leads ao vivo"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"]] },
   { main: "novo", views: [["novo", "Cadastrar"], ["turmas", "Turmas"], ["precos", "Preços"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação (MKT)"], ["ia", "IA Assistente"]] }
 ];
 function groupOfView(v) { for (var i = 0; i < TABGROUPS.length; i++) { for (var j = 0; j < TABGROUPS[i].views.length; j++) { if (TABGROUPS[i].views[j][0] === v) return TABGROUPS[i]; } } return null; }
@@ -5911,6 +5911,7 @@ const TITLES = {
   liberacao: "Liberação de curso online (Marketing)",
   relatorios: "Relatórios",
   dre: "DRE / Resultado",
+  retornos: "Retornos de pagamento",
   distribuicao: "Distribuição / Esteira",
   kanban: "Funil comercial",
   novo: "Cadastrar lead",
@@ -6179,6 +6180,9 @@ function App() {
     goals,
     period,
     setPeriod,
+    periodo,
+    setPeriodo,
+    salesPer,
     sales,
     setSales,
     classes,
@@ -6240,6 +6244,12 @@ function TurmasHub(props) {
   const [tab, setTab] = useState("turmas");
   return h("div", null, h("div", { style: { display: "flex", gap: 6, marginBottom: 14, background: C.glass, border: "1px solid " + C.glassBorder, borderRadius: 12, padding: 5, width: "fit-content", backdropFilter: C.blur, WebkitBackdropFilter: C.blur } }, [["turmas", "Turmas"], ["vagas", "Vagas em tempo real"]].map(function (t) { return h("button", { key: t[0], onClick: function () { setTab(t[0]); }, style: { padding: "8px 16px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, background: tab === t[0] ? C.gradAccent : "transparent", color: tab === t[0] ? "#fff" : C.ink } }, t[1]); })), tab === "turmas" ? h(Turmas, props) : h(Vagas, { classes: props.classes, onAudit: props.onAudit }));
 }
+function Retornos({ leads, onLeadUpdate, me }) {
+  const WON = ["Venda efetivada", "Pago", "Vaga garantida"];
+  const pend = (leads || []).filter(function (l) { return WON.indexOf(l.stage) < 0 && (["Proposta enviada", "Pagamento pendente", "Encaixado em turma", "Promessa de pagamento"].indexOf(l.stage) >= 0 || (l.pagamento && l.pagamento.link)); });
+  const total = pend.reduce(function (a, l) { return a + (l.value || 0); }, 0);
+  return h("div", null, h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 16 } }, h(Stat, { label: "Retornos pendentes", value: pend.length, tone: C.accent }), h(Stat, { label: "Valor a receber", value: fmtBRL(total), tone: C.brand })), pend.length === 0 ? h(Card, null, h("div", { style: { color: C.muted, fontSize: 13 } }, "Nenhum pagamento pendente de retorno.")) : h(Card, { style: { padding: 0, overflow: "hidden" } }, h("div", { style: { padding: "14px 18px", borderBottom: "1px solid " + C.line } }, h("strong", { style: { fontSize: 14 } }, "Fila de retornos de pagamento")), h("div", null, pend.map(function (l) { var pg = l.pagamento || {}; return h("div", { key: l.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px 18px", borderTop: "1px solid " + C.line, flexWrap: "wrap" } }, h("div", null, h("div", { style: { fontWeight: 700, fontSize: 14 } }, l.name), h("div", { style: { fontSize: 12, color: C.muted } }, (l.stage || "") + " · " + (l.consultant || "") + (pg.metodo ? " · " + pg.metodo : ""))), h("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" } }, h("b", { style: { fontSize: 14 } }, fmtBRL(l.value || 0)), pg.link ? h("a", { href: pg.link, target: "_blank", rel: "noreferrer", style: { fontSize: 12.5, color: C.brand } }, "Abrir link ↗") : null, h(Btn, { small: true, onClick: function () { if (onLeadUpdate) onLeadUpdate(l.id, { stage: "Venda efetivada" }); } }, "Confirmar pagamento ✓"))); }))));
+}
 function Shell({
   session,
   setSession,
@@ -6254,6 +6264,9 @@ function Shell({
   goals,
   period,
   setPeriod,
+  periodo,
+  setPeriodo,
+  salesPer,
   sales,
   setSales,
   classes,
@@ -6363,6 +6376,7 @@ function Shell({
     ia: "IA lê a conversa do WhatsApp, detecta intenção/objeção e sugere resposta e preço.",
     relatorios: "Números totais, conversão, receita e ranking — exportável e imprimível.",
     dre: "Demonstrativo de resultado com composição em cascata (waterfall) — estrutura editável.",
+    retornos: "Pagamentos pendentes de confirmação — confirme para efetivar a venda no faturamento.",
     distribuicao: "Suba listas, distribua em rodízio, chatbot inicia, leads parados liberam para puxar.",
     turmas: "Consulte turmas por estado/cidade, envie o portal ao lead e encaixe-o numa vaga.",
     precos: "Tabela Pix/Cartão/Boleto. Admin edita; consultor dá desconto travado no mínimo.",
@@ -6663,7 +6677,7 @@ function Shell({
     leads: leads,
     consultants: seedConsultants,
     sales: salesPer
-  }), view === "dre" && h(Dre, { sales: salesPer }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
+  }), view === "dre" && h(Dre, { sales: salesPer }), view === "retornos" && h(Retornos, { leads: leads, onLeadUpdate: updateLead, me: me }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
     activeLead: activeLead
   }), view === "aovivo" && /*#__PURE__*/React.createElement(LeadsAoVivo, {
     me: me,

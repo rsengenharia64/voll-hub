@@ -3910,9 +3910,10 @@ function Vagas({
 function Ranking({
   period,
   setPeriod,
-  me
+  me,
+  psales
 }) {
-  const sales = seedSales.filter(s => inPeriod(s.date, period));
+  const sales = psales || seedSales.filter(s => inPeriod(s.date, period));
   const byC = {};
   sales.forEach(s => {
     byC[s.consultant] = byC[s.consultant] || {
@@ -3993,10 +3994,11 @@ function Comissao({
   period,
   setPeriod,
   role,
-  me
+  me,
+  psales
 }) {
   const isConsultor = role === "CONSULTOR";
-  const sales = seedSales.filter(s => inPeriod(s.date, period));
+  const sales = psales || seedSales.filter(s => inPeriod(s.date, period));
   const byC = {};
   sales.forEach(s => {
     byC[s.consultant] = byC[s.consultant] || {
@@ -6633,12 +6635,14 @@ function Shell({
   }), view === "ranking" && /*#__PURE__*/React.createElement(Ranking, {
     period: period,
     setPeriod: setPeriod,
-    me: me
+    me: me,
+    psales: salesPer
   }), view === "comissao" && /*#__PURE__*/React.createElement(Comissao, {
     period: period,
     setPeriod: setPeriod,
     role: role,
-    me: me
+    me: me,
+    psales: salesPer
   }), view === "vendas" && /*#__PURE__*/React.createElement(Vendas, {
     sales: sales,
     setSales: setSales,

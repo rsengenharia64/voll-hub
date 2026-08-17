@@ -5089,9 +5089,12 @@ function Liberacao({
 }
 function Kanban({
   leads,
-  onOpen
+  onOpen,
+  onLeadUpdate
 }) {
   const [q, setQ] = useState("");
+  const [dragId, setDragId] = useState(null);
+  const [overCol, setOverCol] = useState(null);
   const norm = function (s) { return ({ "Pagamento pendente": "Proposta enviada", "Pago": "Venda efetivada", "Vaga garantida": "Encaixado em turma", "Qualificado": "Em atendimento" })[s] || s; };
   const cols = ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Pós-venda", "Perdido"];
   const CAP = 40;
@@ -5102,14 +5105,15 @@ function Kanban({
       h("input", { value: q, onChange: function (e) { setQ(e.target.value); }, placeholder: "Buscar por nome, telefone, cidade…", style: { flex: 1, minWidth: 220, padding: 10, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 14 } }),
       h("span", { style: { fontSize: 12, color: C.muted } }, base.length + " lead(s)")
     ),
+    h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 10 } }, "Arraste os cards entre as etapas para mudar o status \u2014 grava no banco com hist\u00f3rico."),
     h("div", { style: { display: "grid", gridTemplateColumns: "repeat(" + cols.length + ",minmax(180px,1fr))", gap: 12, overflowX: "auto" } },
       cols.map(function (col) {
         var colLeads = base.filter(function (l) { return norm(l.stage) === col; });
         var shown = colLeads.slice(0, CAP);
-        return h("div", { key: col, style: { background: "#EEF4F2", borderRadius: 12, padding: 10 } },
+        return h("div", { key: col, onDragOver: function (e) { e.preventDefault(); if (overCol !== col) setOverCol(col); }, onDragLeave: function () { setOverCol(function (c) { return c === col ? null : c; }); }, onDrop: function (e) { e.preventDefault(); if (dragId && onLeadUpdate) onLeadUpdate(dragId, { stage: col }); setDragId(null); setOverCol(null); }, style: { background: overCol === col ? C.brandSoft : "#EEF4F2", borderRadius: 12, padding: 10, border: overCol === col ? "2px dashed " + C.brand : "2px solid transparent", transition: "background .12s ease" } },
           h("div", { style: { fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 } }, col + " · " + colLeads.length),
           shown.map(function (l) {
-            return h("div", { key: l.id, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "pointer" } },
+            return h("div", { key: l.id, draggable: true, onDragStart: function (e) { setDragId(l.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }, onDragEnd: function () { setDragId(null); setOverCol(null); }, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "grab", opacity: dragId === l.id ? 0.4 : 1 } },
               h("div", { style: { fontWeight: 600, fontSize: 13 } }, l.name),
               h("div", { style: { fontSize: 11, color: C.muted, margin: "2px 0 6px" } }, (l.city || "") + (l.state ? "/" + l.state : "") + " · " + (l.consultant || "")),
               h(Badge, { tone: "brand" }, l.lastInteraction || "—")
@@ -6614,7 +6618,8 @@ function Shell({
     onAudit: addAudit
   }), view === "kanban" && /*#__PURE__*/React.createElement(Kanban, {
     leads: role === "CONSULTOR" ? leads.filter(l => l.consultant === me) : leads,
-    onOpen: setOpen
+    onOpen: setOpen,
+    onLeadUpdate: updateLead
   }), view === "novo" && /*#__PURE__*/React.createElement(NewLeadForm, {
     leads: leads,
     onCreate: addLead,

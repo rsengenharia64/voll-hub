@@ -1194,7 +1194,7 @@ function Login({
     fetch(USERS_API + "?action=login&secret=" + USERS_SECRET, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email, senha: pass }) })
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        if (res && res.ok && res.user) { onLogin({ id: res.user.id, name: res.user.nome, email: res.user.email, role: res.user.role, area: res.user.area, active: true }); return; }
+        if (res && res.ok && res.user) { onLogin({ id: res.user.id, name: (res.user.email === "admin@voll.com" ? "Rander Bruno" : res.user.nome), email: res.user.email, role: res.user.role, area: res.user.area, active: true }); return; }
         if (fallback()) return;
         setErr((res && res.error) || "Credenciais inválidas.");
       })
@@ -2391,7 +2391,7 @@ function Usuarios({ onAudit }) {
         users.length === 0 ? h("div", { style: { fontSize: 13, color: C.muted } }, "Carregando usuários…") : users.map(function (u) {
           return h("div", { key: u.id, style: { border: "1px solid " + C.line, borderRadius: 10, padding: 10, opacity: u.ativo ? 1 : 0.55 } },
             h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-              h("div", null, h("strong", { style: { fontSize: 14 } }, u.nome), h("div", { style: { fontSize: 12, color: C.muted } }, u.email)),
+              h("div", null, h("strong", { style: { fontSize: 14 } }, u.email === "admin@voll.com" ? "Rander Bruno" : u.nome), h("div", { style: { fontSize: 12, color: C.muted } }, u.email)),
               h(Btn, { small: true, variant: u.ativo ? "ghost" : "primary", onClick: function () { upd(u, { ativo: !u.ativo }, "Admin " + (u.ativo ? "desativou" : "ativou") + " " + u.nome); } }, u.ativo ? "Desativar" : "Ativar")
             ),
             h("div", { style: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" } },

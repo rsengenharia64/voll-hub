@@ -3807,6 +3807,18 @@ function PeriodFilter({
     }
   }, "filtro aplicado a todos os números desta tela"));
 }
+function inPeriodo(dateStr, p) {
+  if (!p || p.range === "tudo") return true;
+  var ds = String(dateStr || "").slice(0, 10); if (!ds) return true;
+  var d = new Date(ds); if (isNaN(d.getTime())) return true;
+  var now = new Date();
+  if (p.range === "intervalo") { if (p.de && ds < p.de) return false; if (p.ate && ds > p.ate) return false; return true; }
+  if (p.range === "dia") return d.toDateString() === now.toDateString();
+  if (p.range === "semana") { var diff = (now.getTime() - d.getTime()) / 86400000; return diff >= 0 && diff < 7; }
+  if (p.range === "mes") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  if (p.range === "ano") return d.getFullYear() === now.getFullYear();
+  return true;
+}
 function inPeriod(dateStr, p) {
   const d = new Date(dateStr);
   if (d.getFullYear() !== p.year) return false;
@@ -6100,6 +6112,8 @@ function App() {
     return seedSales.map(s => ({ ...s, notified: true, approval: "APROVADA", release: "PENDENTE_MKT", clientName: s.consultant + " — cliente", clientEmail: "cliente@email.com", modality: "Presencial" }));
   });
   const [classes, setClasses] = useState(seedClasses);
+  const [periodo, setPeriodo] = useState({ range: "tudo" });
+  const salesPer = useMemo(function () { return (sales || []).filter(function (s) { return inPeriodo(s.date, periodo); }); }, [sales, periodo]);
   const [notifications, setNotifications] = useState([]);
   const [releases, setReleases] = useState([]);
   const [open, setOpen] = useState(null);
@@ -6596,7 +6610,7 @@ function Shell({
       fontSize: 13,
       margin: "0 0 22px"
     }
-  }, sub), (function () { var _g = groupOfView(view); return _g ? h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16, background: C.glass, border: "1px solid " + C.glassBorder, borderRadius: 12, padding: 5, backdropFilter: C.blur, WebkitBackdropFilter: C.blur } }, _g.views.map(function (t) { return h("button", { key: t[0], onClick: function () { navTo(t[0]); }, style: { padding: "7px 13px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700, background: view === t[0] ? C.gradAccent : "transparent", color: view === t[0] ? "#fff" : C.ink } }, t[1]); })) : null; })(), view === "guia" && /*#__PURE__*/React.createElement(Guia, {
+  }, sub), h("div", { style: { display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", margin: "10px 0 14px" } }, h("span", { style: { fontSize: 12, color: C.muted, fontWeight: 700 } }, "Período:"), [["dia", "Dia"], ["semana", "Semana"], ["mes", "Mês"], ["ano", "Ano"], ["tudo", "Tudo"]].map(function (o) { return h("button", { key: o[0], onClick: function () { setPeriodo({ range: o[0] }); }, style: { padding: "6px 12px", borderRadius: 8, border: "1px solid " + (periodo.range === o[0] ? C.brand : C.line), background: periodo.range === o[0] ? C.brandSoft : "rgba(255,255,255,.6)", color: periodo.range === o[0] ? C.brand : C.ink, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" } }, o[1]); }), h("span", { style: { fontSize: 12, color: C.muted } }, "intervalo:"), h("input", { type: "date", value: periodo.de || "", onChange: function (e) { setPeriodo({ range: "intervalo", de: e.target.value, ate: periodo.ate || "" }); }, style: { padding: 6, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 12.5 } }), h("input", { type: "date", value: periodo.ate || "", onChange: function (e) { setPeriodo({ range: "intervalo", de: periodo.de || "", ate: e.target.value }); }, style: { padding: 6, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 12.5 } })), (function () { var _g = groupOfView(view); return _g ? h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16, background: C.glass, border: "1px solid " + C.glassBorder, borderRadius: 12, padding: 5, backdropFilter: C.blur, WebkitBackdropFilter: C.blur } }, _g.views.map(function (t) { return h("button", { key: t[0], onClick: function () { navTo(t[0]); }, style: { padding: "7px 13px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700, background: view === t[0] ? C.gradAccent : "transparent", color: view === t[0] ? "#fff" : C.ink } }, t[1]); })) : null; })(), view === "guia" && /*#__PURE__*/React.createElement(Guia, {
     role: role,
     go: go
   }), view === "exec" && /*#__PURE__*/React.createElement(ExecDashboard, {
@@ -6644,8 +6658,8 @@ function Shell({
   }), view === "relatorios" && /*#__PURE__*/React.createElement(Relatorios, {
     leads: leads,
     consultants: seedConsultants,
-    sales: sales
-  }), view === "dre" && h(Dre, { sales: sales }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
+    sales: salesPer
+  }), view === "dre" && h(Dre, { sales: salesPer }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
     activeLead: activeLead
   }), view === "aovivo" && /*#__PURE__*/React.createElement(LeadsAoVivo, {
     me: me,

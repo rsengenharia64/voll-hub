@@ -195,6 +195,12 @@ const COURSES = [
   "Mat Pilates (Solo)",
   "Pilates Avançado (Aparelhos)"
 ];
+const TABGROUPS = [
+  { main: "exec", views: [["exec", "Dashboard"], ["meu", "Meu painel"], ["equipes", "Equipes"], ["consultores", "Consultores"], ["ranking", "Ranking"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão"], ["relatorios", "Relatórios"], ["dre", "DRE"]] },
+  { main: "novo", views: [["novo", "Cadastrar"], ["turmas", "Turmas"], ["precos", "Preços"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação (MKT)"], ["ia", "IA Assistente"]] }
+];
+function groupOfView(v) { for (var i = 0; i < TABGROUPS.length; i++) { for (var j = 0; j < TABGROUPS[i].views.length; j++) { if (TABGROUPS[i].views[j][0] === v) return TABGROUPS[i]; } } return null; }
+function navActive(view, k) { if (view === k) return true; for (var i = 0; i < TABGROUPS.length; i++) { if (TABGROUPS[i].main === k) { for (var j = 0; j < TABGROUPS[i].views.length; j++) { if (TABGROUPS[i].views[j][0] === view) return true; } } } return false; }
 function courseOptions(current) {
   const base = (current && COURSES.indexOf(current) < 0) ? [current, ...COURSES] : COURSES.slice();
   return base;
@@ -5854,10 +5860,10 @@ const ALL_NAV = [{
   items: [["guia", "📖 Guia / Tutorial"]]
 }, {
   label: "Gestão",
-  items: [["exec", "Dashboard executivo"], ["meu", "Meu painel"], ["equipes", "Equipes / Gerentes"], ["consultores", "Consultores"], ["ranking", "Ranking / Premiação"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão auto"], ["relatorios", "Relatórios"], ["dre", "DRE / Resultado"]]
+  items: [["exec", "Gestão"]]
 }, {
   label: "Operação",
-  items: [["aovivo", "Leads ao vivo (Tallos)"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
+  items: [["aovivo", "Leads ao vivo (Tallos)"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"]]
 }, {
   label: "Administração",
   items: [["usuarios", "Usuários"], ["integracoes", "Integrações"], ["sync", "Sincronização"], ["logs", "Logs e auditoria"]]
@@ -6458,10 +6464,10 @@ function Shell({
       marginBottom: 3,
       borderRadius: 9,
       border: "none",
-      background: view === k ? C.gradAccent : "transparent",
-      color: view === k ? "#fff" : C.ink,
-      fontWeight: view === k ? 700 : 500,
-      boxShadow: view === k ? "0 4px 14px rgba(31,167,154,.28)" : "none",
+      background: navActive(view, k) ? C.gradAccent : "transparent",
+      color: navActive(view, k) ? "#fff" : C.ink,
+      fontWeight: navActive(view, k) ? 700 : 500,
+      boxShadow: navActive(view, k) ? "0 4px 14px rgba(31,167,154,.28)" : "none",
       transition: "background .15s ease",
       cursor: "pointer",
       fontFamily: "inherit",
@@ -6566,7 +6572,7 @@ function Shell({
       fontSize: 13,
       margin: "0 0 22px"
     }
-  }, sub), view === "guia" && /*#__PURE__*/React.createElement(Guia, {
+  }, sub), (function () { var _g = groupOfView(view); return _g ? h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16, background: C.glass, border: "1px solid " + C.glassBorder, borderRadius: 12, padding: 5, backdropFilter: C.blur, WebkitBackdropFilter: C.blur } }, _g.views.map(function (t) { return h("button", { key: t[0], onClick: function () { navTo(t[0]); }, style: { padding: "7px 13px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700, background: view === t[0] ? C.gradAccent : "transparent", color: view === t[0] ? "#fff" : C.ink } }, t[1]); })) : null; })(), view === "guia" && /*#__PURE__*/React.createElement(Guia, {
     role: role,
     go: go
   }), view === "exec" && /*#__PURE__*/React.createElement(ExecDashboard, {

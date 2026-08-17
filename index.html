@@ -5102,16 +5102,21 @@ function Kanban({ leads, onOpen, onLeadUpdate, me }) {
   const [soMeus, setSoMeus] = useState(false);
   const [dtDe, setDtDe] = useState("");
   const [dtAte, setDtAte] = useState("");
+  const [pipe, setPipe] = useState("Todos");
+  const consMgr = {}; seedConsultants.forEach(function (cc) { consMgr[cc.name] = cc.manager; });
+  const PIPES = ["Todos"].concat(MANAGERS);
+  const pipeCount = function (p) { return p === "Todos" ? leads.length : leads.filter(function (l) { return (consMgr[l.consultant] || "") === p; }).length; };
   const norm = function (s) { return ({ "Pagamento pendente": "Proposta enviada", "Pago": "Venda efetivada", "Vaga garantida": "Encaixado em turma", "Qualificado": "Em atendimento" })[s] || s; };
   const cols = ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Pós-venda", "Perdido"];
   const CAP = 40;
   const ql = q.trim().toLowerCase();
   const inDate = function (l) { if (!dtDe && !dtAte) return true; var d = String(l.created_at || "").slice(0, 10); if (!d) return true; if (dtDe && d < dtDe) return false; if (dtAte && d > dtAte) return false; return true; };
-  const base = leads.filter(function (l) { if (soMeus && l.consultant !== me) return false; if (!inDate(l)) return false; if (ql && ![l.name, l.phone, l.city, l.consultant, l.email].some(function (v) { return String(v || "").toLowerCase().indexOf(ql) >= 0; })) return false; return true; });
+  const base = leads.filter(function (l) { if (soMeus && l.consultant !== me) return false; if (pipe !== "Todos" && (consMgr[l.consultant] || "") !== pipe) return false; if (!inDate(l)) return false; if (ql && ![l.name, l.phone, l.city, l.consultant, l.email].some(function (v) { return String(v || "").toLowerCase().indexOf(ql) >= 0; })) return false; return true; });
   const totGeral = base.reduce(function (a, l) { return a + (l.value || 0); }, 0);
   const exportCSV = function () { var head = "Nome;Telefone;Cidade;Etapa;Valor;Consultor;Criado\n"; var rows = base.map(function (l) { return [l.name, l.phone, (l.city || "") + (l.state ? "/" + l.state : ""), norm(l.stage), l.value || 0, l.consultant || "", String(l.created_at || "").slice(0, 10)].join(";"); }).join("\n"); var blob = new Blob(["﻿" + head + rows], { type: "text/csv;charset=utf-8" }); var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "crm-funil.csv"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000); };
   const inp = { padding: 9, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 13.5 };
   return h("div", null,
+    h("div", { style: { display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12, borderBottom: "1px solid " + C.line } }, PIPES.map(function (p) { return h("button", { key: p, onClick: function () { setPipe(p); }, style: { padding: "8px 14px", border: "none", background: "transparent", borderBottom: pipe === p ? "3px solid " + C.brand : "3px solid transparent", color: pipe === p ? C.brand : C.muted, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" } }, p + " \u00b7 " + pipeCount(p)); })),
     h("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 } },
       h("input", { value: q, onChange: function (e) { setQ(e.target.value); }, placeholder: "Buscar nome, telefone, e-mail, cidade…", style: Object.assign({}, inp, { flex: 1, minWidth: 200 }) }),
       h("button", { onClick: function () { setSoMeus(!soMeus); }, style: { padding: "8px 12px", borderRadius: 9, border: "1px solid " + (soMeus ? C.brand : C.line), background: soMeus ? C.brandSoft : "rgba(255,255,255,.6)", color: soMeus ? C.brand : C.ink, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" } }, (soMeus ? "★ " : "") + "Somente meus leads"),
@@ -5132,7 +5137,8 @@ function Kanban({ leads, onOpen, onLeadUpdate, me }) {
             return h("div", { key: l.id, draggable: true, onDragStart: function (e) { setDragId(l.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }, onDragEnd: function () { setDragId(null); setOverCol(null); }, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "grab", opacity: dragId === l.id ? 0.4 : 1, borderLeft: "3px solid " + C.brand } },
               h("div", { style: { fontWeight: 600, fontSize: 13 } }, l.name),
               h("div", { style: { fontSize: 11, color: C.muted, margin: "2px 0 6px" } }, (l.city || "") + (l.state ? "/" + l.state : "") + " · " + (l.consultant || "")),
-              h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, h("b", { style: { fontSize: 13, color: C.ink } }, fmtBRL(l.value || 0)), h(Badge, { tone: "brand" }, l.lastInteraction || "—"))
+              h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, h("b", { style: { fontSize: 13, color: C.ink } }, fmtBRL(l.value || 0)), h(Badge, { tone: "brand" }, l.lastInteraction || "—")),
+              h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, borderTop: "1px dashed " + C.line, paddingTop: 6 } }, h("span", { style: { fontSize: 10, color: C.muted } }, "#" + String(l.id).slice(0, 6)), (function () { var _ix = cols.indexOf(col); var _nx = _ix >= 0 && _ix < 4 ? cols[_ix + 1] : null; return _nx ? h("button", { onClick: function (e) { e.stopPropagation(); if (onLeadUpdate) onLeadUpdate(l.id, { stage: _nx }); }, style: { fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, border: "1px solid " + C.brand, background: C.brandSoft, color: C.brand, cursor: "pointer", fontFamily: "inherit" } }, "Avan\u00e7ar \u2192") : null; })())
             );
           }),
           colLeads.length > CAP ? h("div", { style: { fontSize: 12, color: C.brand, fontWeight: 600, textAlign: "center", padding: 6 } }, "+ " + (colLeads.length - CAP) + " mais (refine a busca)") : null

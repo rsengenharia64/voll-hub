@@ -879,17 +879,14 @@ if (!VOLL_DEMO_OFF) {
     var _tipo = _mgr.indexOf("Online") >= 0 ? "Online" : "Presencial";
     seedConsultants.push({ name: _nomes[_i], manager: _mgr, salesType: _tipo, phone: "", online: (_i % 3 !== 0), leads: 6 + (_i % 10), firstResponseMin: 3 + (_i % 12), responseRate: 78 + (_i % 20), won: 0, revenue: 0, goal: 100000, rule: { type: "faixa" }, demo: true });
   }
-  var _vals = [2500, 2740, 2990, 3490, 4990, 5240, 5990];
+  var _vals = [2790, 2990, 2990, 3490];
   var _met = ["Pix", "Cart\u00e3o", "Boleto"];
   var _sid = 1000;
+  var _mk = function (c, _mes, _dia) { seedSales.push({ id: "SD" + (_sid++), consultant: c.name, value: _vals[Math.floor(Math.random() * _vals.length)], date: "2026-0" + _mes + "-" + (_dia < 10 ? "0" + _dia : _dia), product: c.salesType === "Online" ? "Forma\u00e7\u00e3o Online" : "Forma\u00e7\u00e3o Presencial", method: _met[Math.floor(Math.random() * _met.length)], salesType: c.salesType, demo: true }); };
   seedConsultants.forEach(function (c) {
-    var _q = 6 + Math.floor(Math.random() * 12);
-    for (var _j = 0; _j < _q; _j++) {
-      var _mes, _dia;
-      if (Math.random() < 0.5) { _mes = 8; _dia = 1 + Math.floor(Math.random() * 17); } else { _mes = 7; _dia = 1 + Math.floor(Math.random() * 31); }
-      var _v = _vals[Math.floor(Math.random() * _vals.length)];
-      seedSales.push({ id: "SD" + (_sid++), consultant: c.name, value: _v, date: "2026-0" + _mes + "-" + (_dia < 10 ? "0" + _dia : _dia), product: c.salesType === "Online" ? "Forma\u00e7\u00e3o Online" : "Forma\u00e7\u00e3o Presencial", method: _met[Math.floor(Math.random() * _met.length)], salesType: c.salesType, demo: true });
-    }
+    var _prob = 0.62 + Math.random() * 0.42;
+    for (var _d = 1; _d <= 31; _d++) { if (Math.random() < _prob) _mk(c, 7, _d); }
+    for (var _d2 = 1; _d2 <= 17; _d2++) { if (Math.random() < _prob * 0.92) _mk(c, 8, _d2); }
   });
   var _agg = {};
   seedSales.forEach(function (s) { if (!_agg[s.consultant]) _agg[s.consultant] = { v: 0, q: 0 }; _agg[s.consultant].v += s.value; _agg[s.consultant].q += 1; });
@@ -6066,7 +6063,7 @@ function LeadsAoVivo({ me, role }) {
 function App() {
   const [users, setUsers] = useState(seedUsers);
   const [session, setSession] = useState(function () { try { return JSON.parse(localStorage.getItem("voll_session") || "null"); } catch (e) { return null; } });
-  const [leads, setLeads] = useState(function () { try { var s = localStorage.getItem("voll_leads_v3"); return s ? JSON.parse(s) : seedLeads; } catch (e) { return seedLeads; } });
+  const [leads, setLeads] = useState(function () { try { var s = localStorage.getItem("voll_leads_v4"); return s ? JSON.parse(s) : seedLeads; } catch (e) { return seedLeads; } });
   const [proofs, setProofs] = useState(seedProofs);
   const [pricing, setPricing] = useState(seedPricing);
   const [goals] = useState(seedGoals);
@@ -6076,7 +6073,7 @@ function App() {
     year: 2026
   });
   const [sales, setSales] = useState(function () {
-    try { var ss = localStorage.getItem("voll_sales_v3"); if (ss) return JSON.parse(ss); } catch (e) {}
+    try { var ss = localStorage.getItem("voll_sales_v4"); if (ss) return JSON.parse(ss); } catch (e) {}
     return seedSales.map(s => ({ ...s, notified: true, approval: "APROVADA", release: "PENDENTE_MKT", clientName: s.consultant + " — cliente", clientEmail: "cliente@email.com", modality: "Presencial" }));
   });
   const [classes, setClasses] = useState(seedClasses);
@@ -6107,8 +6104,8 @@ function App() {
       }
     }).catch(() => setSyncTurmas("fallback"));
   }, []);
-  useEffect(function () { try { localStorage.setItem("voll_leads_v3", JSON.stringify(leads)); } catch (e) {} }, [leads]);
-  useEffect(function () { try { localStorage.setItem("voll_sales_v3", JSON.stringify(sales)); } catch (e) {} }, [sales]);
+  useEffect(function () { try { localStorage.setItem("voll_leads_v4", JSON.stringify(leads)); } catch (e) {} }, [leads]);
+  useEffect(function () { try { localStorage.setItem("voll_sales_v4", JSON.stringify(sales)); } catch (e) {} }, [sales]);
   useEffect(function () {
     loadDbLeads().then(function (rows) { if (rows && rows.length) setLeads(rows); });
     if (!sbClient) return;

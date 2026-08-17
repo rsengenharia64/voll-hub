@@ -6292,6 +6292,13 @@ function Shell({
     if (prev && patch.stage && patch.stage !== prev.stage) {
       newHistory = (prev.history || []).concat([{ at: new Date().toISOString(), from: prev.stage, to: patch.stage, by: me }]);
     }
+    var WON = ["Venda efetivada", "Pago", "Vaga garantida"];
+    if (prev && patch.stage && WON.indexOf(patch.stage) >= 0 && WON.indexOf(prev.stage) < 0) {
+      var _sv = { id: "R" + id, leadId: id, consultant: prev.consultant || me, value: patch.value || prev.value || 2790, date: new Date().toISOString().slice(0, 10), product: prev.salesType === "Online" ? "Formação Online" : "Formação Presencial", curso: prev.interesse || "Formação Completa", city: prev.city || "", state: prev.state || "", method: (prev.pagamento && prev.pagamento.metodo) || "Pix", salesType: prev.salesType || "Presencial", genero: prev.genero, idade: prev.idade, real: true };
+      if (!seedSales.some(function (s) { return s.leadId === id; })) seedSales.push(_sv);
+      setSales(function (ss) { return ss.some(function (s) { return s.leadId === id; }) ? ss : ss.concat([_sv]); });
+      try { addAudit("Venda gerada no faturamento: " + (prev.name || "lead") + " · " + fmtBRL(_sv.value)); } catch (e) {}
+    }
     setLeads(function (ls) {
       return ls.map(function (l) {
         if (l.id !== id) return l;

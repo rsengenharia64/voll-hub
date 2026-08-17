@@ -5093,36 +5093,44 @@ function Liberacao({
     }
   }, last.message)));
 }
-function Kanban({
-  leads,
-  onOpen,
-  onLeadUpdate
-}) {
+function Kanban({ leads, onOpen, onLeadUpdate, me }) {
   const [q, setQ] = useState("");
   const [dragId, setDragId] = useState(null);
   const [overCol, setOverCol] = useState(null);
+  const [soMeus, setSoMeus] = useState(false);
+  const [dtDe, setDtDe] = useState("");
+  const [dtAte, setDtAte] = useState("");
   const norm = function (s) { return ({ "Pagamento pendente": "Proposta enviada", "Pago": "Venda efetivada", "Vaga garantida": "Encaixado em turma", "Qualificado": "Em atendimento" })[s] || s; };
   const cols = ["Novo", "Em atendimento", "Proposta enviada", "Encaixado em turma", "Venda efetivada", "Pós-venda", "Perdido"];
   const CAP = 40;
   const ql = q.trim().toLowerCase();
-  const base = ql ? leads.filter(function (l) { return [l.name, l.phone, l.city, l.consultant].some(function (v) { return String(v || "").toLowerCase().indexOf(ql) >= 0; }); }) : leads;
+  const inDate = function (l) { if (!dtDe && !dtAte) return true; var d = String(l.created_at || "").slice(0, 10); if (!d) return true; if (dtDe && d < dtDe) return false; if (dtAte && d > dtAte) return false; return true; };
+  const base = leads.filter(function (l) { if (soMeus && l.consultant !== me) return false; if (!inDate(l)) return false; if (ql && ![l.name, l.phone, l.city, l.consultant, l.email].some(function (v) { return String(v || "").toLowerCase().indexOf(ql) >= 0; })) return false; return true; });
+  const totGeral = base.reduce(function (a, l) { return a + (l.value || 0); }, 0);
+  const exportCSV = function () { var head = "Nome;Telefone;Cidade;Etapa;Valor;Consultor;Criado\n"; var rows = base.map(function (l) { return [l.name, l.phone, (l.city || "") + (l.state ? "/" + l.state : ""), norm(l.stage), l.value || 0, l.consultant || "", String(l.created_at || "").slice(0, 10)].join(";"); }).join("\n"); var blob = new Blob(["﻿" + head + rows], { type: "text/csv;charset=utf-8" }); var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "crm-funil.csv"; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000); };
+  const inp = { padding: 9, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 13.5 };
   return h("div", null,
-    h("div", { style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
-      h("input", { value: q, onChange: function (e) { setQ(e.target.value); }, placeholder: "Buscar por nome, telefone, cidade…", style: { flex: 1, minWidth: 220, padding: 10, border: "1px solid " + C.line, borderRadius: 9, fontFamily: "inherit", fontSize: 14 } }),
-      h("span", { style: { fontSize: 12, color: C.muted } }, base.length + " lead(s)")
+    h("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10 } },
+      h("input", { value: q, onChange: function (e) { setQ(e.target.value); }, placeholder: "Buscar nome, telefone, e-mail, cidade…", style: Object.assign({}, inp, { flex: 1, minWidth: 200 }) }),
+      h("button", { onClick: function () { setSoMeus(!soMeus); }, style: { padding: "8px 12px", borderRadius: 9, border: "1px solid " + (soMeus ? C.brand : C.line), background: soMeus ? C.brandSoft : "rgba(255,255,255,.6)", color: soMeus ? C.brand : C.ink, fontWeight: 700, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" } }, (soMeus ? "★ " : "") + "Somente meus leads"),
+      h("span", { style: { fontSize: 12, color: C.muted } }, "Criação:"),
+      h("input", { type: "date", value: dtDe, onChange: function (e) { setDtDe(e.target.value); }, style: inp }),
+      h("input", { type: "date", value: dtAte, onChange: function (e) { setDtAte(e.target.value); }, style: inp }),
+      h(Btn, { small: true, variant: "ghost", onClick: exportCSV }, "Exportar CSV")
     ),
-    h("div", { style: { fontSize: 12, color: C.muted, marginBottom: 10 } }, "Arraste os cards entre as etapas para mudar o status \u2014 grava no banco com hist\u00f3rico."),
-    h("div", { style: { display: "grid", gridTemplateColumns: "repeat(" + cols.length + ",minmax(180px,1fr))", gap: 12, overflowX: "auto" } },
+    h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.muted, marginBottom: 12, flexWrap: "wrap", gap: 6 } }, h("span", null, "Arraste os cards entre as etapas — grava no banco com histórico."), h("span", null, base.length + " negócio(s) · ", h("b", { style: { color: C.ink } }, fmtBRL(totGeral)))),
+    h("div", { style: { display: "grid", gridTemplateColumns: "repeat(" + cols.length + ",minmax(190px,1fr))", gap: 12, overflowX: "auto" } },
       cols.map(function (col) {
         var colLeads = base.filter(function (l) { return norm(l.stage) === col; });
+        var soma = colLeads.reduce(function (a, l) { return a + (l.value || 0); }, 0);
         var shown = colLeads.slice(0, CAP);
         return h("div", { key: col, onDragOver: function (e) { e.preventDefault(); if (overCol !== col) setOverCol(col); }, onDragLeave: function () { setOverCol(function (c) { return c === col ? null : c; }); }, onDrop: function (e) { e.preventDefault(); if (dragId && onLeadUpdate) onLeadUpdate(dragId, { stage: col }); setDragId(null); setOverCol(null); }, style: { background: overCol === col ? C.brandSoft : "#EEF4F2", borderRadius: 12, padding: 10, border: overCol === col ? "2px dashed " + C.brand : "2px solid transparent", transition: "background .12s ease" } },
-          h("div", { style: { fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.4 } }, col + " · " + colLeads.length),
+          h("div", { style: { marginBottom: 10 } }, h("div", { style: { fontSize: 11, fontWeight: 800, color: C.ink2, textTransform: "uppercase", letterSpacing: 0.4 } }, col), h("div", { style: { fontSize: 11, color: C.muted, display: "flex", justifyContent: "space-between", marginTop: 2 } }, h("span", null, colLeads.length + " negócio(s)"), h("b", { style: { color: C.brand } }, fmtBRL(soma)))),
           shown.map(function (l) {
-            return h("div", { key: l.id, draggable: true, onDragStart: function (e) { setDragId(l.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }, onDragEnd: function () { setDragId(null); setOverCol(null); }, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "grab", opacity: dragId === l.id ? 0.4 : 1 } },
+            return h("div", { key: l.id, draggable: true, onDragStart: function (e) { setDragId(l.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }, onDragEnd: function () { setDragId(null); setOverCol(null); }, onClick: function () { onOpen(l); }, style: { background: C.panel, border: "1px solid " + C.line, borderRadius: 10, padding: 11, marginBottom: 8, cursor: "grab", opacity: dragId === l.id ? 0.4 : 1, borderLeft: "3px solid " + C.brand } },
               h("div", { style: { fontWeight: 600, fontSize: 13 } }, l.name),
               h("div", { style: { fontSize: 11, color: C.muted, margin: "2px 0 6px" } }, (l.city || "") + (l.state ? "/" + l.state : "") + " · " + (l.consultant || "")),
-              h(Badge, { tone: "brand" }, l.lastInteraction || "—")
+              h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, h("b", { style: { fontSize: 13, color: C.ink } }, fmtBRL(l.value || 0)), h(Badge, { tone: "brand" }, l.lastInteraction || "—"))
             );
           }),
           colLeads.length > CAP ? h("div", { style: { fontSize: 12, color: C.brand, fontWeight: 600, textAlign: "center", padding: 6 } }, "+ " + (colLeads.length - CAP) + " mais (refine a busca)") : null
@@ -6654,7 +6662,8 @@ function Shell({
   }), view === "kanban" && /*#__PURE__*/React.createElement(Kanban, {
     leads: role === "CONSULTOR" ? leads.filter(l => l.consultant === me) : leads,
     onOpen: setOpen,
-    onLeadUpdate: updateLead
+    onLeadUpdate: updateLead,
+    me: me
   }), view === "novo" && /*#__PURE__*/React.createElement(NewLeadForm, {
     leads: leads,
     onCreate: addLead,

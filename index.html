@@ -197,6 +197,7 @@ const COURSES = [
 ];
 const TABGROUPS = [
   { main: "exec", views: [["exec", "Dashboard"], ["meu", "Meu painel"], ["equipes", "Equipes"], ["consultores", "Consultores"], ["ranking", "Ranking"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão"], ["relatorios", "Relatórios"], ["dre", "DRE"]] },
+  { main: "kanban", views: [["kanban", "Funil"], ["aovivo", "Leads ao vivo"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"]] },
   { main: "novo", views: [["novo", "Cadastrar"], ["turmas", "Turmas"], ["precos", "Preços"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação (MKT)"], ["ia", "IA Assistente"]] }
 ];
 function groupOfView(v) { for (var i = 0; i < TABGROUPS.length; i++) { for (var j = 0; j < TABGROUPS[i].views.length; j++) { if (TABGROUPS[i].views[j][0] === v) return TABGROUPS[i]; } } return null; }
@@ -5863,7 +5864,7 @@ const ALL_NAV = [{
   items: [["exec", "Gestão"]]
 }, {
   label: "Operação",
-  items: [["aovivo", "Leads ao vivo (Tallos)"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"]]
+  items: [["kanban", "CRM Comercial"], ["novo", "Cadastrar lead"]]
 }, {
   label: "Administração",
   items: [["usuarios", "Usuários"], ["integracoes", "Integrações"], ["sync", "Sincronização"], ["logs", "Logs e auditoria"]]

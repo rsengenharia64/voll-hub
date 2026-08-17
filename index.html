@@ -1533,7 +1533,7 @@ function ExecDashboard({
     var nm = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
     for (var i = 5; i >= 0; i--) { var d = new Date(now.getFullYear(), now.getMonth() - i, 1); b.push({ label: nm[d.getMonth()], v: 0, key: d.getFullYear() + "-" + d.getMonth() }); }
     var idx = {}; b.forEach(function (x, i2) { idx[x.key] = i2; });
-    leads.forEach(function (l) { if (["Venda efetivada", "Pago", "Vaga garantida"].indexOf(l.stage) >= 0 && l.created_at) { var d = new Date(l.created_at); var k = d.getFullYear() + "-" + d.getMonth(); if (idx[k] != null) b[idx[k]].v += (l.value || 0); } });
+    sales.forEach(function (s) { if (s.date) { var d = new Date(s.date); var k = d.getFullYear() + "-" + d.getMonth(); if (idx[k] != null) b[idx[k]].v += (s.value || 0); } });
     return b;
   })();
   const monMax = Math.max.apply(null, monthly.map(function (m) { return m.v; }).concat([1]));
@@ -2233,7 +2233,7 @@ function Relatorios({
     var now = new Date(); var b = []; var nm = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
     for (var i = 5; i >= 0; i--) { var d = new Date(now.getFullYear(), now.getMonth() - i, 1); b.push({ label: nm[d.getMonth()], v: 0, key: d.getFullYear() + "-" + d.getMonth() }); }
     var idx = {}; b.forEach(function (x, i2) { idx[x.key] = i2; });
-    leads.forEach(function (l) { if (["Venda efetivada", "Pago", "Vaga garantida"].indexOf(l.stage) >= 0 && l.created_at) { var d = new Date(l.created_at); var k = d.getFullYear() + "-" + d.getMonth(); if (idx[k] != null) b[idx[k]].v += (l.value || 0); } });
+    sales.forEach(function (s) { if (s.date) { var d = new Date(s.date); var k = d.getFullYear() + "-" + d.getMonth(); if (idx[k] != null) b[idx[k]].v += (s.value || 0); } });
     return b;
   })();
   const monMaxR = Math.max.apply(null, monthlyR.map(function (m) { return m.v; }).concat([1]));
@@ -6052,7 +6052,7 @@ function LeadsAoVivo({ me, role }) {
 function App() {
   const [users, setUsers] = useState(seedUsers);
   const [session, setSession] = useState(function () { try { return JSON.parse(localStorage.getItem("voll_session") || "null"); } catch (e) { return null; } });
-  const [leads, setLeads] = useState(function () { try { var s = localStorage.getItem("voll_leads"); return s ? JSON.parse(s) : seedLeads; } catch (e) { return seedLeads; } });
+  const [leads, setLeads] = useState(function () { try { var s = localStorage.getItem("voll_leads_v2"); return s ? JSON.parse(s) : seedLeads; } catch (e) { return seedLeads; } });
   const [proofs, setProofs] = useState(seedProofs);
   const [pricing, setPricing] = useState(seedPricing);
   const [goals] = useState(seedGoals);
@@ -6062,7 +6062,7 @@ function App() {
     year: 2026
   });
   const [sales, setSales] = useState(function () {
-    try { var ss = localStorage.getItem("voll_sales"); if (ss) return JSON.parse(ss); } catch (e) {}
+    try { var ss = localStorage.getItem("voll_sales_v2"); if (ss) return JSON.parse(ss); } catch (e) {}
     return seedSales.map(s => ({ ...s, notified: true, approval: "APROVADA", release: "PENDENTE_MKT", clientName: s.consultant + " — cliente", clientEmail: "cliente@email.com", modality: "Presencial" }));
   });
   const [classes, setClasses] = useState(seedClasses);
@@ -6093,8 +6093,8 @@ function App() {
       }
     }).catch(() => setSyncTurmas("fallback"));
   }, []);
-  useEffect(function () { try { localStorage.setItem("voll_leads", JSON.stringify(leads)); } catch (e) {} }, [leads]);
-  useEffect(function () { try { localStorage.setItem("voll_sales", JSON.stringify(sales)); } catch (e) {} }, [sales]);
+  useEffect(function () { try { localStorage.setItem("voll_leads_v2", JSON.stringify(leads)); } catch (e) {} }, [leads]);
+  useEffect(function () { try { localStorage.setItem("voll_sales_v2", JSON.stringify(sales)); } catch (e) {} }, [sales]);
   useEffect(function () {
     loadDbLeads().then(function (rows) { if (rows && rows.length) setLeads(rows); });
     if (!sbClient) return;

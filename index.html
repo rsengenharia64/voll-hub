@@ -6415,7 +6415,7 @@ function Shell({
     }
   }), /*#__PURE__*/React.createElement("aside", {
     style: {
-      width: 240,
+      width: 272,
       borderRight: `1px solid ${C.glassBorder}`,
       padding: 18,
       boxSizing: "border-box",
@@ -6508,15 +6508,15 @@ function Shell({
     style: {
       marginBottom: 16
     }
-  }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, fontWeight: 800, color: C.brand, textTransform: "uppercase", letterSpacing: 1.2, margin: "12px 0 8px", padding: "7px 10px", background: C.brandSoft, borderRadius: 9, borderLeft: "3px solid " + C.brand } }, h("span", { style: { width: 7, height: 7, borderRadius: "50%", background: C.gradAccent, display: "inline-block", flexShrink: 0 } }), g.label), g.items.map(([k, label]) => /*#__PURE__*/React.createElement("button", {
+  }, h("div", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 800, color: C.brand, textTransform: "uppercase", letterSpacing: 1.1, margin: "14px 0 8px", padding: "9px 12px", background: C.brandSoft, borderRadius: 9, borderLeft: "3px solid " + C.brand } }, h("span", { style: { width: 7, height: 7, borderRadius: "50%", background: C.gradAccent, display: "inline-block", flexShrink: 0 } }), g.label), g.items.map(([k, label]) => /*#__PURE__*/React.createElement("button", {
     key: k,
     onClick: () => navTo(k),
     style: {
       display: "block",
       width: "100%",
       textAlign: "left",
-      padding: "9px 12px",
-      marginBottom: 3,
+      padding: "12px 15px",
+      marginBottom: 5,
       borderRadius: 9,
       border: "none",
       background: navActive(view, k) ? C.gradAccent : "transparent",
@@ -6526,7 +6526,7 @@ function Shell({
       transition: "background .15s ease",
       cursor: "pointer",
       fontFamily: "inherit",
-      fontSize: 13.5
+      fontSize: 15
     }
   }, label)))), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -6536,14 +6536,14 @@ function Shell({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
-      fontWeight: 700
+      fontSize: 15,
+      fontWeight: 800
     }
   }, me), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
+      fontSize: 12.5,
       color: C.muted,
-      marginBottom: 8
+      marginBottom: 10
     }
   }, ROLES[role]), /*#__PURE__*/React.createElement(Btn, {
     small: true,

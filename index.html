@@ -5851,7 +5851,7 @@ const ALL_NAV = [{
   items: [["guia", "📖 Guia / Tutorial"]]
 }, {
   label: "Gestão",
-  items: [["exec", "Dashboard executivo"], ["meu", "Meu painel"], ["equipes", "Equipes / Gerentes"], ["consultores", "Consultores"], ["ranking", "Ranking / Premiação"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão auto"], ["relatorios", "Relatórios"]]
+  items: [["exec", "Dashboard executivo"], ["meu", "Meu painel"], ["equipes", "Equipes / Gerentes"], ["consultores", "Consultores"], ["ranking", "Ranking / Premiação"], ["comissao", "Comissão"], ["vendas", "Vendas & Comissão auto"], ["relatorios", "Relatórios"], ["dre", "DRE / Resultado"]]
 }, {
   label: "Operação",
   items: [["aovivo", "Leads ao vivo (Tallos)"], ["whats", "WhatsApp"], ["distribuicao", "Distribuição / Esteira"], ["kanban", "Funil"], ["novo", "Cadastrar lead"], ["turmas", "Turmas (Brasil)"], ["vagas", "Vagas em tempo real"], ["precos", "Preços e pagamento"], ["comprovantes", "Comprovantes"], ["liberacao", "Liberação online (MKT)"], ["ia", "IA Assistente"]]
@@ -5870,6 +5870,7 @@ const TITLES = {
   vendas: "Vendas & Comissão automática",
   liberacao: "Liberação de curso online (Marketing)",
   relatorios: "Relatórios",
+  dre: "DRE / Resultado",
   distribuicao: "Distribuição / Esteira",
   kanban: "Funil comercial",
   novo: "Cadastrar lead",
@@ -6154,6 +6155,20 @@ function App() {
     allowed
   });
 }
+function Dre({ sales }) {
+  const receita = (sales || []).reduce(function (a, b) { return a + (b.value || 0); }, 0);
+  const [pc, setPc] = useState({ custo: 35, desp: 15, imposto: 8, outros: 2 });
+  const custo = Math.round(receita * pc.custo / 100);
+  const desp = Math.round(receita * pc.desp / 100);
+  const imposto = Math.round(receita * pc.imposto / 100);
+  const outros = Math.round(receita * pc.outros / 100);
+  const resultado = receita - custo - desp - imposto + outros;
+  const margem = receita ? resultado / receita * 100 : 0;
+  const fld = function (label, key) { return h("div", null, h("label", { style: { fontSize: 11, color: C.muted, display: "block" } }, label), h("input", { type: "number", value: pc[key], onChange: function (e) { setPc(Object.assign({}, pc, { [key]: Number(e.target.value) || 0 })); }, style: { width: "100%", padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 } })); };
+  var steps = [{ l: "Receita", v: receita, t: "total" }, { l: "Custos", v: -custo, t: "neg" }, { l: "Desp. Oper.", v: -desp, t: "neg" }, { l: "Impostos", v: -imposto, t: "neg" }, { l: "Outros", v: outros, t: "pos" }, { l: "Resultado", v: resultado, t: "total" }];
+  var maxV = Math.max(receita, resultado, 1);
+  return h("div", null, h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 } }, h(Stat, { label: "Receita bruta", value: fmtBRL(receita), tone: C.brand }), h(Stat, { label: "Custos + despesas", value: fmtBRL(custo + desp + imposto) }), h(Stat, { label: "Resultado", value: fmtBRL(resultado), tone: resultado >= 0 ? C.ok : C.danger }), h(Stat, { label: "Margem", value: pct(margem), tone: margem >= 20 ? C.ok : C.accent })), h(Card, { style: { marginBottom: 14 } }, h("strong", { style: { fontSize: 14 } }, "Cascata do resultado (waterfall)"), h("div", { style: { fontSize: 12, color: C.muted, marginTop: 2 } }, "O que construiu e o que corroeu o n\u00famero, da receita ao resultado."), (function () { var W = 760, H = 300, padT = 30, padB = 46, padX = 12, n = steps.length; var gap = (W - padX * 2) / n, bw = gap * 0.56; var yP = function (val) { return padT + (H - padT - padB) * (1 - val / maxV); }; var cum = 0; var rects = []; steps.forEach(function (s, i) { var lo, hi; if (s.t === "total") { lo = 0; hi = s.v; } else if (s.v < 0) { hi = cum; lo = cum + s.v; cum = lo; } else { lo = cum; hi = cum + s.v; cum = hi; } var x = padX + i * gap + (gap - bw) / 2; var yTop = yP(Math.max(lo, hi)), yBot = yP(Math.min(lo, hi)); var col = s.t === "total" ? C.brand : s.v < 0 ? C.danger : C.ok; rects.push(h("g", { key: i }, h("rect", { x: x, y: yTop, width: bw, height: Math.max(2, yBot - yTop), rx: 4, fill: col }), h("text", { x: x + bw / 2, y: yTop - 6, fontSize: 11, fontWeight: 700, fill: C.ink2, textAnchor: "middle" }, (s.t === "total" ? "" : s.v < 0 ? "\u2212" : "+") + fmtBRL(Math.abs(s.v))), h("text", { x: x + bw / 2, y: H - padB + 16, fontSize: 11, fill: C.muted, textAnchor: "middle" }, s.l))); }); return h("svg", { viewBox: "0 0 " + W + " " + H, style: { width: "100%", height: "auto", marginTop: 10 } }, h("line", { x1: padX, y1: yP(0), x2: W - padX, y2: yP(0), stroke: C.line, strokeWidth: 1 }), rects); })()), h("div", { style: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 } }, h(Card, { style: { padding: 0, overflow: "hidden" } }, h("div", { style: { padding: "14px 18px", borderBottom: "1px solid " + C.line } }, h("strong", { style: { fontSize: 14 } }, "Demonstrativo de resultado (DRE)")), h("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 14 } }, h("tbody", null, [["Receita bruta", receita, C.ink, 1], ["(-) Custos", -custo, C.danger, 0], ["(-) Despesas operacionais", -desp, C.danger, 0], ["(-) Impostos", -imposto, C.danger, 0], ["(+) Outras receitas", outros, C.ok, 0], ["(=) Resultado", resultado, resultado >= 0 ? C.ok : C.danger, 1]].map(function (r, i) { return h("tr", { key: i, style: { borderTop: "1px solid " + C.line, fontWeight: r[3] ? 700 : 400 } }, h("td", { style: { padding: "10px 18px" } }, r[0]), h("td", { style: { padding: "10px 18px", textAlign: "right", color: r[2] } }, fmtBRL(r[1]))); })))), h(Card, null, h("strong", { style: { fontSize: 14 } }, "Premissas (edite)"), h("div", { style: { fontSize: 12, color: C.muted, marginTop: 2, marginBottom: 10 } }, "% sobre a receita bruta \u2014 recalcula na hora."), h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } }, fld("Custos %", "custo"), fld("Despesas %", "desp"), fld("Impostos %", "imposto"), fld("Outras receitas %", "outros")))));
+}
 function Shell({
   session,
   setSession,
@@ -6269,6 +6284,7 @@ function Shell({
     vagas: "Mapa de vagas por turma em tempo real — preparado para webhook do portal.",
     ia: "IA lê a conversa do WhatsApp, detecta intenção/objeção e sugere resposta e preço.",
     relatorios: "Números totais, conversão, receita e ranking — exportável e imprimível.",
+    dre: "Demonstrativo de resultado com composição em cascata (waterfall) — estrutura editável.",
     distribuicao: "Suba listas, distribua em rodízio, chatbot inicia, leads parados liberam para puxar.",
     turmas: "Consulte turmas por estado/cidade, envie o portal ao lead e encaixe-o numa vaga.",
     precos: "Tabela Pix/Cartão/Boleto. Admin edita; consultor dá desconto travado no mínimo.",
@@ -6567,7 +6583,7 @@ function Shell({
     leads: leads,
     consultants: seedConsultants,
     sales: sales
-  }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
+  }), view === "dre" && h(Dre, { sales: sales }), view === "whats" && /*#__PURE__*/React.createElement(WhatsAppPanel, {
     activeLead: activeLead
   }), view === "aovivo" && /*#__PURE__*/React.createElement(LeadsAoVivo, {
     me: me,

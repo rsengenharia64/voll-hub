@@ -2367,19 +2367,27 @@ function Usuarios({ onAudit }) {
   const CARGOS = [["ADMIN", "Administrador"], ["CEO", "CEO"], ["DIRETOR", "Diretor"], ["GERENTE", "Gerente"], ["SUPERVISOR", "Supervisor"], ["CONSULTOR_ONLINE", "Consultor Online"], ["CONSULTOR_PRESENCIAL", "Consultor Presencial"], ["ASSISTENTE", "Assistente Administrativo"], ["FINANCEIRO", "Financeiro"], ["MARKETING", "Marketing"]];
   const AREAS = ["Comercial", "Marketing", "Gestão/Administração", "Financeiro"];
   const cargoNome = function (r) { var x = CARGOS.find(function (c) { return c[0] === r; }); return x ? x[1] : r; };
+  const LS_KEY = "voll_users_v1";
+  const readLS = function () { try { var s = localStorage.getItem(LS_KEY); if (s) return JSON.parse(s); } catch (e) {} return null; };
+  const writeLS = function (arr) { try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); } catch (e) {} };
+  const seedUsers = function () { return [{ id: "u-admin", nome: "Rander Bruno", email: "admin@voll.com", role: "ADMIN", area: "Gest\u00e3o/Administra\u00e7\u00e3o", ativo: true }, { id: "u-ric", nome: "Ricardo", email: "ricardo@voll.com", role: "GERENTE", area: "Comercial", ativo: true }, { id: "u-pau", nome: "Paula", email: "paula@voll.com", role: "GERENTE", area: "Comercial", ativo: true }, { id: "u-tan", nome: "T\u00e2nia", email: "tania@voll.com", role: "GERENTE", area: "Comercial", ativo: true }, { id: "u-mai", nome: "Maiara", email: "maiara@voll.com", role: "CONSULTOR_PRESENCIAL", area: "Comercial", ativo: true }, { id: "u-bru", nome: "Bruno", email: "bruno@voll.com", role: "CONSULTOR_ONLINE", area: "Comercial", ativo: true }, { id: "u-cam", nome: "Camila", email: "camila@voll.com", role: "CONSULTOR_PRESENCIAL", area: "Comercial", ativo: true }, { id: "u-fin", nome: "Financeiro VOLL", email: "financeiro@voll.com", role: "FINANCEIRO", area: "Financeiro", ativo: true }]; };
   const api = function (action, payload) { return fetch(USERS_API + "?action=" + action + "&secret=" + USERS_SECRET, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) }).then(function (r) { return r.json(); }).catch(function (e) { return { ok: false, error: String(e) }; }); };
-  const load = function () { fetch(USERS_API + "?action=list&secret=" + USERS_SECRET).then(function (r) { return r.json(); }).then(function (res) { if (res.ok) setUsers(res.users || []); }).catch(function () {}); };
+  const load = function () { var ls = readLS(); if (ls && ls.length) { setUsers(ls); } else { var sd = seedUsers(); writeLS(sd); setUsers(sd); } fetch(USERS_API + "?action=list&secret=" + USERS_SECRET).then(function (r) { return r.json(); }).then(function (res) { if (res.ok && res.users && res.users.length) { setUsers(res.users); writeLS(res.users); } }).catch(function () {}); };
   useEffect(function () { load(); }, []);
   const add = function () {
     if (!f.nome || !f.email) { setMsg("Preencha nome e e-mail."); return; }
     setBusy(true);
-    api("create", f).then(function (res) {
-      setBusy(false);
-      if (res.ok) { setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123")); setF({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" }); load(); if (onAudit) onAudit("Admin criou usuário " + res.user.nome + " (" + cargoNome(res.user.role) + ")"); }
-      else setMsg("⚠ " + (res.error || "erro"));
-    });
+    var atual = readLS() || [];
+    if (atual.some(function (u) { return (u.email || "").toLowerCase() === f.email.toLowerCase(); })) { setBusy(false); setMsg("⚠ Já existe usuário com esse e-mail."); return; }
+    var novo = { id: "u" + Date.now(), nome: f.nome, email: f.email, role: f.role, area: f.area, ativo: true };
+    var novaLista = atual.concat([novo]);
+    writeLS(novaLista); setUsers(novaLista); setBusy(false);
+    setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123"));
+    if (onAudit) onAudit("Admin criou usuário " + novo.nome + " (" + cargoNome(novo.role) + ")");
+    setF({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" });
+    api("create", f).then(function () {});
   };
-  const upd = function (u, patch, nota) { api("update", Object.assign({ id: u.id }, patch)).then(function () { load(); if (nota && onAudit) onAudit(nota); }); };
+  const upd = function (u, patch, nota) { var atual = readLS() || []; var nova = atual.map(function (x) { return x.id === u.id ? Object.assign({}, x, patch) : x; }); writeLS(nova); setUsers(nova); if (nota && onAudit) onAudit(nota); api("update", Object.assign({ id: u.id }, patch)).then(function () {}); };
   const selStyle = { padding: 8, border: "1px solid " + C.line, borderRadius: 8, fontFamily: "inherit", fontSize: 13 };
   return h("div", { style: { display: "grid", gridTemplateColumns: "minmax(260px,1fr) 1.4fr", gap: 14 } },
     h(Card, null,
@@ -4510,7 +4518,7 @@ function Vendas({
       color: C.muted,
       margin: "4px 0 12px"
     }
-  }, "Ao confirmar: comissão calculada e enviada ao WhatsApp do consultor. Depois o gestor aprova e a venda cai para o Marketing liberar o curso online."), /*#__PURE__*/React.createElement("div", {
+  }, "Ao confirmar: comissão calculada e enviada ao WhatsApp do consultor. Depois o gestor aprova e a venda cai para o Financeiro liberar o curso online."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1.6fr 1.6fr 1.2fr 1fr 1.1fr auto",

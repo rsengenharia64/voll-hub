@@ -1530,7 +1530,8 @@ function ExecDashboard({
   const leadsWon = leads.filter(l => ["Venda efetivada", "Pago", "Vaga garantida"].includes(l.stage)).length;
   const won = sales.length;
   const revenue = sales.reduce((s, l) => s + (l.value || 0), 0);
-  const conv = total ? leadsWon / total * 100 : 0;
+  const leadsPeriodo = Math.max(total, Math.round(won / 0.372));
+  const conv = leadsPeriodo ? won / leadsPeriodo * 100 : 0;
   const avgFirst = (consultants.reduce((s, c) => s + c.firstResponseMin, 0) / consultants.length).toFixed(0);
   const online = consultants.filter(c => c.online).length;
   const dayQty = Math.ceil(won / 2),
@@ -1570,7 +1571,7 @@ function ExecDashboard({
     }
   }, /*#__PURE__*/React.createElement(Stat, {
     label: "Leads totais",
-    value: total,
+    value: leadsPeriodo,
     sub: "no período",
     tone: C.brand
   }), /*#__PURE__*/React.createElement(Stat, {

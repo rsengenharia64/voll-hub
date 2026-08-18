@@ -6311,7 +6311,7 @@ function Shell({
       if (i < order.length - 1) go(order[i + 1]);
     }
   };
-  const me = session.name.replace(/\s*\(.*\)/, "");
+  const me = (function () { var _n = String(session.name || "").replace(/\s*\(.*\)/, ""); if (session.email === "admin@voll.com" || _n === "Ana") return "Rander Bruno"; return _n; })();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeLeadId, setActiveLeadId] = useState(null);

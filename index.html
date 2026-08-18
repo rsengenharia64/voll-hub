@@ -911,6 +911,7 @@ if (!VOLL_DEMO_OFF) {
   seedSales.forEach(function (s) { if (!_agg[s.consultant]) _agg[s.consultant] = { v: 0, q: 0 }; _agg[s.consultant].v += s.value; _agg[s.consultant].q += 1; });
   seedConsultants.forEach(function (c) { if (_agg[c.name]) { c.revenue = _agg[c.name].v; c.won = _agg[c.name].q; } });
 }
+(function () { try { var ex = JSON.parse(localStorage.getItem("voll_extra_consultants") || "[]"); ex.forEach(function (c) { if (c && c.name && !seedConsultants.some(function (s) { return s.name === c.name; })) seedConsultants.push({ name: c.name, manager: c.manager || "Ricardo (Presencial 1)", salesType: c.salesType || "Presencial", phone: "", online: true, leads: 0, firstResponseMin: 5, responseRate: 80, won: 0, revenue: 0, goal: 100000, rule: { type: "faixa" }, novo: true }); }); } catch (e) {} })();
 const seedProofs = [{
   id: "P1",
   lead: "Patrícia Lima",
@@ -2380,9 +2381,10 @@ function Usuarios({ onAudit }) {
     var atual = readLS() || [];
     if (atual.some(function (u) { return (u.email || "").toLowerCase() === f.email.toLowerCase(); })) { setBusy(false); setMsg("⚠ Já existe usuário com esse e-mail."); return; }
     var novo = { id: "u" + Date.now(), nome: f.nome, email: f.email, role: f.role, area: f.area, ativo: true };
+    if (novo.role === "CONSULTOR_PRESENCIAL" || novo.role === "CONSULTOR_ONLINE") { try { var exc = JSON.parse(localStorage.getItem("voll_extra_consultants") || "[]"); if (!exc.some(function (x) { return x.name === novo.nome; })) { exc.push({ name: novo.nome, salesType: novo.role === "CONSULTOR_ONLINE" ? "Online" : "Presencial", manager: novo.role === "CONSULTOR_ONLINE" ? "T\u00e2nia (Online)" : "Ricardo (Presencial 1)" }); localStorage.setItem("voll_extra_consultants", JSON.stringify(exc)); } } catch (e) {} }
     var novaLista = atual.concat([novo]);
     writeLS(novaLista); setUsers(novaLista); setBusy(false);
-    setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123"));
+    setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123") + ((novo.role === "CONSULTOR_PRESENCIAL" || novo.role === "CONSULTOR_ONLINE") ? " · o consultor aparece nos painéis ao recarregar." : ""));
     if (onAudit) onAudit("Admin criou usuário " + novo.nome + " (" + cargoNome(novo.role) + ")");
     setF({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" });
     api("create", f).then(function () {});

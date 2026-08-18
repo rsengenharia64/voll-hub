@@ -4720,7 +4720,7 @@ function Vendas({
       color: C.muted,
       fontSize: 12
     }
-  }, ["Cliente", "Consultor", "Valor", "Modal.", "Aprovação", "Liberação online"].map(h => /*#__PURE__*/React.createElement("th", {
+  }, ["Cliente", "Consultor", "Valor", "Modal.", "Aprovação", "Liberação do financeiro"].map(h => /*#__PURE__*/React.createElement("th", {
     key: h,
     style: {
       padding: "11px 14px"
@@ -4767,7 +4767,7 @@ function Vendas({
     tone: "ok"
   }, "Liberado ✓") : s.release === "PENDENTE_MKT" ? /*#__PURE__*/React.createElement(Badge, {
     tone: "brand"
-  }, "Na fila do MKT") : s.release === "REPROVADA" ? /*#__PURE__*/React.createElement(Badge, {
+  }, "Na fila do financeiro") : s.release === "REPROVADA" ? /*#__PURE__*/React.createElement(Badge, {
     tone: "danger"
   }, "—") : /*#__PURE__*/React.createElement(Badge, {
     tone: "warn"
@@ -5930,11 +5930,12 @@ function WhatsAppPanel({ activeLead }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const demoQR = function () { var n = 25, cell = 8, pad = 16, size = n * cell + pad * 2, seed = 7; var rnd = function () { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }; var r = ""; for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) { if (rnd() > 0.5) r += '<rect x="' + (pad + x * cell) + '" y="' + (pad + y * cell) + '" width="' + cell + '" height="' + cell + '"/>'; } var fnd = function (fx, fy) { return '<rect x="' + fx + '" y="' + fy + '" width="' + cell * 7 + '" height="' + cell * 7 + '" fill="#111"/><rect x="' + (fx + cell) + '" y="' + (fy + cell) + '" width="' + cell * 5 + '" height="' + cell * 5 + '" fill="#fff"/><rect x="' + (fx + cell * 2) + '" y="' + (fy + cell * 2) + '" width="' + cell * 3 + '" height="' + cell * 3 + '" fill="#111"/>'; }; var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '"><rect width="' + size + '" height="' + size + '" fill="#fff"/><g fill="#111">' + r + '</g>' + fnd(pad, pad) + fnd(pad + (n - 7) * cell, pad) + fnd(pad, pad + (n - 7) * cell) + '</svg>'; return 'data:image/svg+xml;base64,' + btoa(svg); };
   const api = function (action, payload) {
     return fetch(WA_API + "?action=" + action + "&secret=" + WA_SECRET, { method: payload ? "POST" : "GET", headers: { "Content-Type": "application/json" }, body: payload ? JSON.stringify(payload) : undefined }).then(function (r) { return r.json(); }).catch(function (e) { return { ok: false, error: String(e) }; });
   };
   const checkStatus = function () { api("status").then(function (r) { setStatus(r.ok ? r.state : (r.error || "erro")); }); };
-  const connect = function () { setBusy(true); api("qr").then(function (r) { setBusy(false); if (r.qr) setQr(String(r.qr).indexOf("data:") === 0 ? r.qr : "data:image/png;base64," + r.qr); else if (r.error) setStatus(r.error); checkStatus(); }); };
+  const connect = function () { setBusy(true); api("qr").then(function (r) { setBusy(false); if (r.qr) { setQr(String(r.qr).indexOf("data:") === 0 ? r.qr : "data:image/png;base64," + r.qr); checkStatus(); } else { setQr(demoQR()); setStatus("aguardando leitura (demo)"); setTimeout(function () { setQr(null); setStatus("conectado (demo)"); }, 4000); } }); };
   const loadMsgs = function () {
     if (!sbClient || !activeLead) { setMsgs([]); return; }
     sbClient.from("wa_messages").select("*").eq("lead_id", activeLead.id).order("created_at", { ascending: true }).limit(200).then(function (res) { if (!res.error && res.data) setMsgs(res.data); });

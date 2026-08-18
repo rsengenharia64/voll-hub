@@ -237,6 +237,7 @@ const seedGoals = {
 // ---- Vendas históricas com data (para filtros de período e comissão) ----
 const seedSales = [{
   id: "S1",
+  name: "Ana Souza",
   consultant: "Maiara",
   value: 4990,
   date: "2026-06-03",
@@ -245,6 +246,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S2",
+  name: "Carla Dias",
   consultant: "Maiara",
   value: 5990,
   date: "2026-06-09",
@@ -253,6 +255,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S3",
+  name: "Diego Rocha",
   consultant: "Bruno",
   value: 4990,
   date: "2026-06-12",
@@ -261,6 +264,7 @@ const seedSales = [{
   salesType: "Online"
 }, {
   id: "S4",
+  name: "Elaine Costa",
   consultant: "Bruno",
   value: 4990,
   date: "2026-06-15",
@@ -269,6 +273,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S5",
+  name: "Gabriela Nunes",
   consultant: "Camila",
   value: 4990,
   date: "2026-06-18",
@@ -277,6 +282,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S6",
+  name: "Henrique Melo",
   consultant: "Maiara",
   value: 4990,
   date: "2026-06-18",
@@ -285,6 +291,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S7",
+  name: "Isabela Ramos",
   consultant: "Bruno",
   value: 5990,
   date: "2026-05-20",
@@ -293,6 +300,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S8",
+  name: "Lucas Martins",
   consultant: "Maiara",
   value: 4990,
   date: "2026-05-08",
@@ -301,6 +309,7 @@ const seedSales = [{
   salesType: "Online"
 }, {
   id: "S9",
+  name: "Mariana Reis",
   consultant: "Camila",
   value: 4990,
   date: "2026-05-28",
@@ -309,6 +318,7 @@ const seedSales = [{
   salesType: "Presencial"
 }, {
   id: "S10",
+  name: "Rafael Pires",
   consultant: "Bruno",
   value: 4990,
   date: "2026-05-14",
@@ -6111,7 +6121,7 @@ function App() {
     year: 2026
   });
   const [sales, setSales] = useState(function () {
-    try { var ss = localStorage.getItem("voll_sales_v7"); if (ss) return JSON.parse(ss); } catch (e) {}
+    try { var ss = localStorage.getItem("voll_sales_v8"); if (ss) return JSON.parse(ss); } catch (e) {}
     return seedSales.map(s => ({ ...s, notified: true, approval: "APROVADA", release: "PENDENTE_MKT", clientName: s.consultant + " — cliente", clientEmail: "cliente@email.com", modality: "Presencial" }));
   });
   const [classes, setClasses] = useState(seedClasses);
@@ -6145,7 +6155,7 @@ function App() {
     }).catch(() => setSyncTurmas("fallback"));
   }, []);
   useEffect(function () { try { localStorage.setItem("voll_leads_v6", JSON.stringify(leads)); } catch (e) {} }, [leads]);
-  useEffect(function () { try { localStorage.setItem("voll_sales_v7", JSON.stringify(sales)); } catch (e) {} }, [sales]);
+  useEffect(function () { try { localStorage.setItem("voll_sales_v8", JSON.stringify(sales)); } catch (e) {} }, [sales]);
   useEffect(function () {
     loadDbLeads().then(function (rows) { if (rows && rows.length) setLeads(rows); });
     if (!sbClient) return;

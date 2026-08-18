@@ -2335,7 +2335,7 @@ function Relatorios({
 }
 
 // ---------------- Usuários (admin) ----------------
-function Usuarios({ onAudit }) {
+function Usuarios({ onAudit, onConsultantAdded }) {
   const [users, setUsers] = useState([]);
   const [f, setF] = useState({ nome: "", email: "", senha: "", role: "CONSULTOR_PRESENCIAL", area: "Comercial" });
   const [msg, setMsg] = useState("");
@@ -2356,7 +2356,7 @@ function Usuarios({ onAudit }) {
     var atual = readLS() || [];
     if (atual.some(function (u) { return (u.email || "").toLowerCase() === f.email.toLowerCase(); })) { setBusy(false); setMsg("⚠ Já existe usuário com esse e-mail."); return; }
     var novo = { id: "u" + Date.now(), nome: f.nome, email: f.email, role: f.role, area: f.area, ativo: true };
-    if (novo.role === "CONSULTOR_PRESENCIAL" || novo.role === "CONSULTOR_ONLINE") { try { var exc = JSON.parse(localStorage.getItem("voll_extra_consultants") || "[]"); if (!exc.some(function (x) { return x.name === novo.nome; })) { exc.push({ name: novo.nome, salesType: novo.role === "CONSULTOR_ONLINE" ? "Online" : "Presencial", manager: novo.role === "CONSULTOR_ONLINE" ? "T\u00e2nia (Online)" : "Ricardo (Presencial 1)" }); localStorage.setItem("voll_extra_consultants", JSON.stringify(exc)); } } catch (e) {} }
+    if (novo.role === "CONSULTOR_PRESENCIAL" || novo.role === "CONSULTOR_ONLINE") { try { var exc = JSON.parse(localStorage.getItem("voll_extra_consultants") || "[]"); if (!exc.some(function (x) { return x.name === novo.nome; })) { exc.push({ name: novo.nome, salesType: novo.role === "CONSULTOR_ONLINE" ? "Online" : "Presencial", manager: novo.role === "CONSULTOR_ONLINE" ? "T\u00e2nia (Online)" : "Ricardo (Presencial 1)" }); localStorage.setItem("voll_extra_consultants", JSON.stringify(exc)); } } catch (e) {} try { if (typeof seedConsultants !== "undefined" && !seedConsultants.some(function (s) { return s.name === novo.nome; })) seedConsultants.push({ name: novo.nome, manager: novo.role === "CONSULTOR_ONLINE" ? "T\u00e2nia (Online)" : "Ricardo (Presencial 1)", salesType: novo.role === "CONSULTOR_ONLINE" ? "Online" : "Presencial", phone: "", online: true, leads: 0, firstResponseMin: 5, responseRate: 80, won: 0, revenue: 0, goal: 100000, rule: { type: "faixa" }, novo: true }); } catch (e) {} if (onConsultantAdded) onConsultantAdded(); }
     var novaLista = atual.concat([novo]);
     writeLS(novaLista); setUsers(novaLista); setBusy(false);
     setMsg("✓ Usuário criado. Senha inicial: " + (f.senha || "123") + ((novo.role === "CONSULTOR_PRESENCIAL" || novo.role === "CONSULTOR_ONLINE") ? " · o consultor aparece nos painéis ao recarregar." : ""));
@@ -6309,6 +6309,7 @@ function Shell({
       if (i < order.length - 1) go(order[i + 1]);
     }
   };
+  const [uTick, setUTick] = useState(0);
   const me = (function () { var _n = String(session.name || "").replace(/\s*\(.*\)/, ""); if (session.email === "admin@voll.com" || _n === "Ana") return "Rander Bruno"; return _n; })();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -6725,7 +6726,9 @@ function Shell({
   }), view === "usuarios" && /*#__PURE__*/React.createElement(Usuarios, {
     users: users,
     setUsers: setUsers,
-    onAudit: addAudit
+    onAudit: addAudit,
+    tick: uTick,
+    onConsultantAdded: function () { setUTick(function (t) { return t + 1; }); }
   }), view === "integracoes" && /*#__PURE__*/React.createElement(Integracoes, null), view === "sync" && /*#__PURE__*/React.createElement(Sync, {
     onAudit: addAudit
   }), view === "logs" && /*#__PURE__*/React.createElement(Logs, {

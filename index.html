@@ -1563,6 +1563,10 @@ function ExecDashboard({
   const donut = bySource.slice(0, 5);
   const donTot = donut.reduce(function (a, x) { return a + x[1]; }, 0) || 1;
   const topVendas = [].concat(sales).sort(function (a, b) { return (b.value || 0) - (a.value || 0); }).slice(0, 8);
+  const payRX = (function () { var pm = { "Pix": 0, "Cart\u00e3o": 0, "Boleto": 0 }; sales.forEach(function (s) { var m = s.method || "Outro"; pm[m] = (pm[m] || 0) + (s.value || 0); }); return Object.keys(pm).map(function (k) { return [k, pm[k]]; }); })();
+  const payMaxX = Math.max.apply(null, payRX.map(function (p) { return p[1]; }).concat([1]));
+  const tiposRX = (function () { var tp = { "Online": 0, "Presencial": 0 }; sales.forEach(function (s) { var t = s.salesType || "Presencial"; tp[t] = (tp[t] || 0) + 1; }); return Object.keys(tp).map(function (k) { return [k, tp[k]]; }); })();
+  const tiposTotX = tiposRX.reduce(function (a, x) { return a + x[1]; }, 0) || 1;
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
@@ -1848,40 +1852,7 @@ function ExecDashboard({
     current: dayValue,
     target: goals.dayValue,
     money: true
-  })))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 14
-    }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("strong", {
-    style: {
-      fontSize: 14
-    }
-  }, "Leads por origem"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 14
-    }
-  }, bySource.map(([src, n]) => /*#__PURE__*/React.createElement(Bar, {
-    key: src,
-    label: src,
-    value: n,
-    max: maxS,
-    tone: C.accent
-  })))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("strong", {
-    style: {
-      fontSize: 14
-    }
-  }, "Distribuição por fase"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 14
-    }
-  }, phaseData.map(p => /*#__PURE__*/React.createElement(Bar, {
-    key: p.phase,
-    label: p.phase,
-    value: p.count,
-    max: maxP
-  }))))));
+  })))), h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, h(Card, null, h("strong", { style: { fontSize: 14 } }, "Receita por forma de pagamento"), h("div", { style: { marginTop: 12, display: "grid", gap: 12 } }, payRX.map(function (p) { var w = Math.round(p[1] / payMaxX * 100); return h("div", { key: p[0] }, h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 } }, h("span", null, p[0]), h("b", null, fmtBRL(p[1]))), h("div", { style: { height: 10, background: C.line, borderRadius: 99, overflow: "hidden" } }, h("div", { style: { width: w + "%", height: "100%", background: C.gradAccent, borderRadius: 99 } }))); }))), h(Card, null, h("strong", { style: { fontSize: 14 } }, "Online x Presencial (vendas)"), (function () { var r = 60, sw = 24, circ = 2 * Math.PI * r, off = 0; var cols = [C.brand, C.accent]; return h("div", { style: { display: "flex", gap: 14, alignItems: "center", marginTop: 10, flexWrap: "wrap" } }, h("svg", { viewBox: "0 0 160 160", style: { width: 130, height: 130, transform: "rotate(-90deg)" } }, tiposRX.map(function (d, i) { var frac = d[1] / tiposTotX; var dash = frac * circ; var seg = h("circle", { key: i, cx: 80, cy: 80, r: r, fill: "none", stroke: cols[i], strokeWidth: sw, strokeDasharray: dash.toFixed(2) + " " + (circ - dash).toFixed(2), strokeDashoffset: (-off).toFixed(2) }); off += dash; return seg; })), h("div", { style: { display: "grid", gap: 6 } }, tiposRX.map(function (d, i) { return h("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13 } }, h("span", { style: { width: 10, height: 10, borderRadius: 3, background: cols[i], display: "inline-block" } }), h("span", null, d[0]), h("b", { style: { marginLeft: "auto" } }, d[1] + " (" + pct(d[1] / tiposTotX * 100) + ")")); }))); })())));
 }
 
 // Visão do consultor: própria carteira + ranking geral.
@@ -2211,6 +2182,10 @@ function Relatorios({
   sales = []
 }) {
   const total = leads.length;
+  const bySourceX = (function () { var m = {}; leads.forEach(function (l) { m[l.source] = (m[l.source] || 0) + 1; }); return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; }); })();
+  const maxSX = Math.max.apply(null, bySourceX.map(function (x) { return x[1]; }).concat([1]));
+  const phaseDataX = PHASES.map(function (p) { return { phase: p, count: leads.filter(function (l) { return leadPhase(l.stage) === p; }).length }; });
+  const maxPX = Math.max.apply(null, phaseDataX.map(function (p) { return p.count; }).concat([1]));
   const sc = st => leads.filter(l => l.stage === st).length;
   const won = leads.filter(l => ["Venda efetivada", "Pago", "Vaga garantida"].includes(l.stage)).length;
   const revenue = leads.filter(l => ["Venda efetivada", "Pago", "Vaga garantida"].includes(l.stage)).reduce((s, l) => s + l.value, 0);
@@ -2301,7 +2276,7 @@ function Relatorios({
     small: true,
     variant: "ghost",
     onClick: () => window.print()
-  }, "Imprimir"))), h(Card, { style: { marginBottom: 14 } }, h("strong", { style: { fontSize: 14 } }, "Evolu\u00e7\u00e3o de receita (6 meses)"), (function () { var W = 600, H = 170, pad = 26; var n = monthlyR.length; var xF = function (i) { return pad + i * ((W - 2 * pad) / (n - 1)); }; var yF = function (v) { return H - pad - (v / monMaxR) * (H - 2 * pad); }; var line = monthlyR.map(function (m, i) { return (i ? "L" : "M") + xF(i).toFixed(1) + " " + yF(m.v).toFixed(1); }).join(" "); var area = "M" + xF(0).toFixed(1) + " " + (H - pad) + " " + monthlyR.map(function (m, i) { return "L" + xF(i).toFixed(1) + " " + yF(m.v).toFixed(1); }).join(" ") + " L" + xF(n - 1).toFixed(1) + " " + (H - pad) + " Z"; return h("svg", { viewBox: "0 0 " + W + " " + H, style: { width: "100%", height: "auto", marginTop: 10 } }, h("defs", null, h("linearGradient", { id: "gAreaR", x1: "0", y1: "0", x2: "0", y2: "1" }, h("stop", { offset: "0%", stopColor: C.brand, stopOpacity: "0.35" }), h("stop", { offset: "100%", stopColor: C.brand, stopOpacity: "0" }))), h("path", { d: area, fill: "url(#gAreaR)" }), h("path", { d: line, fill: "none", stroke: C.brand, strokeWidth: "2.5", strokeLinejoin: "round" }), monthlyR.map(function (m, i) { return h("circle", { key: i, cx: xF(i), cy: yF(m.v), r: "3.5", fill: C.brand }); }), monthlyR.map(function (m, i) { return h("text", { key: "t" + i, x: xF(i), y: H - 8, fontSize: "11", fill: C.muted, textAnchor: "middle" }, m.label); })); })()), h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 } }, h(Card, null, h("strong", { style: { fontSize: 14 } }, "Receita por forma de pagamento"), h("div", { style: { marginTop: 12, display: "grid", gap: 12 } }, payR.map(function (p) { var w = Math.round(p[1] / payMaxR * 100); return h("div", { key: p[0] }, h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 } }, h("span", null, p[0]), h("b", null, fmtBRL(p[1]))), h("div", { style: { height: 10, background: C.line, borderRadius: 99, overflow: "hidden" } }, h("div", { style: { width: w + "%", height: "100%", background: C.gradAccent, borderRadius: 99 } }))); }))), h(Card, null, h("strong", { style: { fontSize: 14 } }, "Online x Presencial (vendas)"), (function () { var r = 60, sw = 24, circ = 2 * Math.PI * r, off = 0; var cols = [C.brand, C.accent]; return h("div", { style: { display: "flex", gap: 14, alignItems: "center", marginTop: 10, flexWrap: "wrap" } }, h("svg", { viewBox: "0 0 160 160", style: { width: 130, height: 130, transform: "rotate(-90deg)" } }, tiposR.map(function (d, i) { var frac = d[1] / tiposTotR; var dash = frac * circ; var seg = h("circle", { key: i, cx: 80, cy: 80, r: r, fill: "none", stroke: cols[i], strokeWidth: sw, strokeDasharray: dash.toFixed(2) + " " + (circ - dash).toFixed(2), strokeDashoffset: (-off).toFixed(2) }); off += dash; return seg; })), h("div", { style: { display: "grid", gap: 6 } }, tiposR.map(function (d, i) { return h("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13 } }, h("span", { style: { width: 10, height: 10, borderRadius: 3, background: cols[i], display: "inline-block" } }), h("span", null, d[0]), h("b", { style: { marginLeft: "auto" } }, d[1] + " (" + pct(d[1] / tiposTotR * 100) + ")")); }))); })())), /*#__PURE__*/React.createElement("div", {
+  }, "Imprimir"))), h(Card, { style: { marginBottom: 14 } }, h("strong", { style: { fontSize: 14 } }, "Evolu\u00e7\u00e3o de receita (6 meses)"), (function () { var W = 600, H = 170, pad = 26; var n = monthlyR.length; var xF = function (i) { return pad + i * ((W - 2 * pad) / (n - 1)); }; var yF = function (v) { return H - pad - (v / monMaxR) * (H - 2 * pad); }; var line = monthlyR.map(function (m, i) { return (i ? "L" : "M") + xF(i).toFixed(1) + " " + yF(m.v).toFixed(1); }).join(" "); var area = "M" + xF(0).toFixed(1) + " " + (H - pad) + " " + monthlyR.map(function (m, i) { return "L" + xF(i).toFixed(1) + " " + yF(m.v).toFixed(1); }).join(" ") + " L" + xF(n - 1).toFixed(1) + " " + (H - pad) + " Z"; return h("svg", { viewBox: "0 0 " + W + " " + H, style: { width: "100%", height: "auto", marginTop: 10 } }, h("defs", null, h("linearGradient", { id: "gAreaR", x1: "0", y1: "0", x2: "0", y2: "1" }, h("stop", { offset: "0%", stopColor: C.brand, stopOpacity: "0.35" }), h("stop", { offset: "100%", stopColor: C.brand, stopOpacity: "0" }))), h("path", { d: area, fill: "url(#gAreaR)" }), h("path", { d: line, fill: "none", stroke: C.brand, strokeWidth: "2.5", strokeLinejoin: "round" }), monthlyR.map(function (m, i) { return h("circle", { key: i, cx: xF(i), cy: yF(m.v), r: "3.5", fill: C.brand }); }), monthlyR.map(function (m, i) { return h("text", { key: "t" + i, x: xF(i), y: H - 8, fontSize: "11", fill: C.muted, textAnchor: "middle" }, m.label); })); })()), h("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 } }, h(Card, null, h("strong", { style: { fontSize: 14 } }, "Leads por origem"), h("div", { style: { marginTop: 14 } }, bySourceX.map(function (r) { return h(Bar, { key: r[0], label: r[0], value: r[1], max: maxSX, tone: C.accent }); }))), h(Card, null, h("strong", { style: { fontSize: 14 } }, "Distribui\u00e7\u00e3o por fase"), h("div", { style: { marginTop: 14 } }, phaseDataX.map(function (p) { return h(Bar, { key: p.phase, label: p.phase, value: p.count, max: maxPX }); })))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
